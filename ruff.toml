@@ -8,13 +8,16 @@ select = [
 ]
 
 ignore = [
-    "ANN101", # Missing type annotation for `self` in method
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "ARG001", # Unused function argument
+    "ARG002", # Unused method argument
     "D203", # no-blank-line-before-class (incompatible with formatter)
     "D212", # multi-line-summary-first-line (incompatible with formatter)
     "COM812", # incompatible with formatter
     "DOC201", # Return not in docstring
     "DOC501", # Exception not in docstring
+    "FBT001", # Boolean-typed positional argument in function definition
+    "FBT002", # Boolean default positional argument in function definition
     "ISC001", # incompatible with formatter
 ]
 

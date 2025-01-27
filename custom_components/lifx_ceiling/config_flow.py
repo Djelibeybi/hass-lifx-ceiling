@@ -95,18 +95,18 @@ class LIFXCeilingConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show the steup form to the user."""
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required(CONF_HOST): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST): str,
+                }
+            ),
         )
 
     @callback
     def _async_create_entry(self) -> ConfigFlowResult:
         """Create the config entry."""
         self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
-        return self.async_create_entry(
-            title=self.label, data={CONF_HOST: self.host}
-        )
+        return self.async_create_entry(title=self.label, data={CONF_HOST: self.host})
 
     async def _get_lifx_label(self, raise_on_progress: bool = True) -> None:
         """Validate the LIFX device and fetch the label."""
@@ -121,8 +121,6 @@ class LIFXCeilingConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(
             formatted_serial(conn.device.mac_addr), raise_on_progress=raise_on_progress
         )
-        self._abort_if_unique_id_configured(
-            updates={CONF_HOST: self.host}
-        )
+        self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
         self.label = conn.device.label
         self.group = conn.device.group

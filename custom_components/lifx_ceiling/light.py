@@ -30,10 +30,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up LIFX Ceiling extra lights."""
     coordinator = entry.runtime_data
-    async_add_entities([
-        LIFXCeilingDownlight(coordinator),
-        LIFXCeilingUplight(coordinator),
-    ])
+    async_add_entities(
+        [
+            LIFXCeilingDownlight(coordinator),
+            LIFXCeilingUplight(coordinator),
+        ]
+    )
 
 
 class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):

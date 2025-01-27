@@ -6,7 +6,7 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "network"
+    "lifx", "network"
   ],
   "documentation": "https://github.com/Djelibeybi/hass-lifx-ceiling",
   "iot_class": "local_polling",
@@ -23,8 +23,7 @@
   "version": "2025.1.0",
   "zeroconf": [
     {
-      "type": "_matter._tcp.local.",
-      "hostname": "D073D5*"
+      "type": "_matter._tcp.local."
     }
   ]
 }
