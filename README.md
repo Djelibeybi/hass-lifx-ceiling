@@ -2,6 +2,8 @@
 
 This integration adds `Light` entities for the uplight and downlight of a LIFX Ceiling, allowing you to control each independently.
 
+> **NOTE:** this integration is in __alpha__ testing phase and _will_ have bugs, issues and unexpected user experiences. Folks who share their home with intolerant occupants are advised to _proceed with caution_.
+
 ## Installation
 
 1. [Add this repository to HACS](https://hacs.xyz/docs/faq/custom_repositories).
