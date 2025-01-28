@@ -10,15 +10,12 @@ from typing import TYPE_CHECKING
 from aiolifx.aiolifx import Light
 from aiolifx.products import product_map
 from aiolifx.products_defs import features_map
-from homeassistant.components.lifx.const import (
-    DEFAULT_ATTEMPTS,
-    LIFX_CEILING_PRODUCT_IDS,
-    OVERALL_TIMEOUT,
-)
 from homeassistant.components.lifx.util import (
     async_execute_lifx,
     async_multi_execute_lifx_with_retries,
 )
+
+from .const import DEFAULT_ATTEMPTS, LIFX_CEILING_PRODUCT_IDS, OVERALL_TIMEOUT
 
 if TYPE_CHECKING:
     from aiolifx.msgtypes import StateGroup, StateLabel, StateVersion

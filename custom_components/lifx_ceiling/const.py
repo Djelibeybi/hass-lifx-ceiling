@@ -11,6 +11,7 @@ ATTR_DOWNLIGHT = "downlight"
 
 CONF_SERIAL = "serial"
 
+DEFAULT_ATTEMPTS = 5
 DOMAIN = "lifx_ceiling"
 
 HSBK_HUE = 0
@@ -21,6 +22,8 @@ HSBK_KELVIN = 3
 INVALID_DEVICE = "invalid_device"
 
 LIFX_CEILING_PRODUCT_IDS = {176, 177, 201, 202}
+
+OVERALL_TIMEOUT = 15
 
 SCAN_INTERVAL = timedelta(seconds=10)
 
