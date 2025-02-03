@@ -16,15 +16,16 @@ After you add them, two new light entities will be created for the uplight and d
 
 ## Known issues/caveats
 
-Adding the uplight or downlight to your Dashboard is discouraged as the state can be up to 10 seconds behind reality and may bounce between `off` and `on` a few times when the state changes.
+1. Scenes created in homeHome Assistant are unlikely to work at all, let alone reliably. Unfortunatily, neither a fix nor a workaround is currently available. If you are experiencing this issue, there is no need to log a bug.
 
-To turn on just the uplight or downlight without any surprises, use the `light.turn_on` action and explicitly specify the brightness and color or color temp to use.
+2. Adding the uplight or downlight to your Dashboard is discouraged as the state can be up to 10 seconds behind reality and may bounce between `off` and `on` a few times when the state changes.
 
-- If neither `brightness` nor `brightness_pct` are used, the light will turn on at full (100%) brightness.
-- If neither `hs_color` nor `color_temp_kelvin` are used, the light will turn on in color temperature mode set to 3500K (neutral).
-- I strongly encourage you to set `transition` to at least `0.25` (or higher) with both `light.turn_on` and `light.turn_off` to make the process less jarring.
+3. To turn on just the uplight or downlight without any surprises, use the `light.turn_on` action and explicitly specify the brightness and color or color temp to use.
+    - If neither `brightness` nor `brightness_pct` are  used, the light will turn on at full (100%) brightness.
+    - If neither `hs_color` nor `color_temp_kelvin` are used, the light will turn on in color temperature mode set to 3500K (neutral).
+    - I strongly encourage you to set `transition` to at least `0.25` (or higher) with both `light.turn_on` and `light.turn_off` to make the process less jarring.
 
-Turning the main light entity on or off or using `light.turn_on` or `light.turn_off` is a good way to reset both to the same state.
+4. Turning the main light entity on or off or using `light.turn_on` or `light.turn_off` is a good way to reset both to the same state.
 
 ## Issues? Bugs?
 
