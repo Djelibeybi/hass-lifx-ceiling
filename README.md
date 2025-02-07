@@ -16,9 +16,11 @@ After you add them, two new light entities will be created for the uplight and d
 
 ## Known issues/caveats
 
-1. Scenes created in homeHome Assistant are unlikely to work at all, let alone reliably. Unfortunatily, neither a fix nor a workaround is currently available. If you are experiencing this issue, there is no need to log a bug.
+1. Scenes should work with version `2025.2.0-beta1` and higher if the scene is recreated.
+    ~~Scenes created in homeHome Assistant are unlikely to work at all, let alone reliably.~~
 
-2. Adding the uplight or downlight to your Dashboard is discouraged as the state can be up to 10 seconds behind reality and may bounce between `off` and `on` a few times when the state changes.
+2. Light state should be reflected correctly when a change is made within 10 seconds for the uplight and downlight from version `2025.2.0-beta1`.
+  ~~Adding the uplight or downlight to your Dashboard is discouraged as the state can be up to 10 seconds behind reality and may bounce between `off` and `on` a few times when the state changes.~~
 
 3. To turn on just the uplight or downlight without any surprises, use the `light.turn_on` action and explicitly specify the brightness and color or color temp to use.
     - If neither `brightness` nor `brightness_pct` are  used, the light will turn on at full (100%) brightness.
