@@ -138,11 +138,12 @@ class LIFXCeiling(Light):
         return hue, saturation, brightness, kelvin
 
     @property
-    def uplight_hs_color(self) -> tuple[int, int]:
+    def uplight_hs_color(self) -> tuple[float, float]:
         """Return hue, saturation as a tuple."""
         hue, saturation, _, _ = self.chain[0][63]
-        hue = round(hue / 65535 * 360)
-        return hue, saturation >> 8
+        hue = hue / 65535 * 360
+        saturation = saturation / 65535 * 100
+        return hue, saturation
 
     @property
     def uplight_brightness(self) -> int:
@@ -157,11 +158,12 @@ class LIFXCeiling(Light):
         return kelvin
 
     @property
-    def downlight_hs_color(self) -> tuple[int, int]:
+    def downlight_hs_color(self) -> tuple[float, float]:
         """Return the hue, saturation from zone 0."""
         hue, saturation, _, _ = self.chain[0][0]
-        hue = round(hue / 65535 * 360)
-        return hue, saturation >> 8
+        hue = hue / 65535 * 360
+        saturation = saturation / 65535 * 100
+        return hue, saturation
 
     @property
     def downlight_brightness(self) -> int:

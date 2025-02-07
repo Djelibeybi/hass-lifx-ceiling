@@ -36,7 +36,7 @@ class LIFXCeilingData:
 
     downlight_brightness: int
     downlight_color: tuple[int, int, int, int]
-    downlight_hs_color: tuple[int, int]
+    downlight_hs_color: tuple[float, float]
     downlight_is_on: bool
     downlight_kelvin: int
     label: str
@@ -49,7 +49,7 @@ class LIFXCeilingData:
     sw_version: str
     uplight_brightness: int
     uplight_color: tuple[int, int, int, int]
-    uplight_hs_color: tuple[int, int]
+    uplight_hs_color: tuple[float, float]
     uplight_is_on: bool
     uplight_kelvin: int
 
@@ -73,7 +73,6 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
             request_refresh_debouncer=Debouncer(
                 hass, _LOGGER, cooldown=REQUEST_REFRESH_DELAY, immediate=True
             ),
-            always_update=False,
         )
 
     async def _async_setup(self) -> None:

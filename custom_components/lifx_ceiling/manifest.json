@@ -20,7 +20,7 @@
     "aiolifx-effects==0.3.2",
     "aiolifx-themes==0.6.4"
   ],
-  "version": "2025.1.0-alpha0",
+  "version": "2025.2.0-beta1",
   "zeroconf": [
     {
       "type": "_matter._tcp.local."

@@ -10,6 +10,7 @@ from homeassistant.components.light import (
     LightEntity,
     LightEntityFeature,
 )
+from homeassistant.core import callback
 
 from .entity import LIFXCeilingEntity
 from .util import hsbk_for_turn_on
@@ -30,12 +31,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up LIFX Ceiling extra lights."""
     coordinator = entry.runtime_data
-    async_add_entities(
-        [
-            LIFXCeilingDownlight(coordinator),
-            LIFXCeilingUplight(coordinator),
-        ]
-    )
+    await coordinator.device.async_update()
+
+    async_add_entities([
+        LIFXCeilingDownlight(coordinator),
+        LIFXCeilingUplight(coordinator),
+    ], update_before_add=True)
 
 
 class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
@@ -52,44 +53,50 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
         self._attr_max_color_temp_kelvin = coordinator.data.max_kelvin
         self._attr_min_color_temp_kelvin = coordinator.data.min_kelvin
 
-    @property
-    def brightness(self) -> int:
-        """Return brightness."""
-        return self.coordinator.data.downlight_brightness
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates."""
+        self._async_update_attrs()
+        super()._handle_coordinator_update()
 
-    @property
-    def color_temp_kelvin(self) -> int:
-        """Return the color temperature in kelvin."""
-        return self.coordinator.data.downlight_kelvin
-
-    @property
-    def color_mode(self) -> ColorMode:
-        """Return the color mode of the downlight."""
+    @callback
+    def _async_update_attrs(self) -> None:
+        """Handle being updated from the coordinator."""
+        self._attr_is_on = self.coordinator.data.downlight_is_on
+        self._attr_brightness = self.coordinator.data.downlight_brightness
+        self._attr_hs_color = self.coordinator.data.downlight_hs_color
+        self._attr_color_temp_kelvin = self.coordinator.data.downlight_kelvin
         _, sat = self.coordinator.data.downlight_hs_color
         if sat > 0:
-            return ColorMode.HS
-        return ColorMode.COLOR_TEMP
-
-    @property
-    def hs_color(self) -> tuple[int, int]:
-        """Return hue and saturation as a tuple."""
-        return self.coordinator.data.downlight_hs_color
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if downlight is on."""
-        return self.coordinator.data.downlight_is_on
+            self._attr_color_mode = ColorMode.HS
+        else:
+            self._attr_color_mode = ColorMode.COLOR_TEMP
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the downlight."""
         duration = int(kwargs.get(ATTR_TRANSITION, 0))
         await self.coordinator.device.turn_downlight_off(duration)
+        self._attr_is_on = False
+        self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the downlight."""
         duration = int(kwargs.get(ATTR_TRANSITION, 0))
         color = hsbk_for_turn_on(self.coordinator.data.downlight_color, **kwargs)
         await self.coordinator.device.turn_downlight_on(color, duration)
+        await self.coordinator.device.async_update()
+
+        self._attr_is_on = True
+        self._attr_brightness = self.coordinator.device.downlight_brightness
+
+        if self.coordinator.device.downlight_hs_color[1] > 0:
+            self._attr_color_mode = ColorMode.HS
+            self._attr_hs_color = self.coordinator.device.downlight_hs_color
+        else:
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+            self._attr_color_temp_kelvin = self.coordinator.device.downlight_kelvin
+
+        self.async_write_ha_state()
 
 
 class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
@@ -106,43 +113,47 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
         self._attr_max_color_temp_kelvin = coordinator.data.max_kelvin
         self._attr_min_color_temp_kelvin = coordinator.data.min_kelvin
 
-    @property
-    def brightness(self) -> int:
-        """Return brightness."""
-        return self.coordinator.data.uplight_brightness
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle coordinator updates."""
+        self._async_update_attrs()
+        super()._handle_coordinator_update()
 
-    @property
-    def color_temp_kelvin(self) -> int:
-        """Return the color temperature in kelvin."""
-        return self.coordinator.data.uplight_kelvin
-
-    @property
-    def color_mode(self) -> ColorMode:
-        """Return the color mode of the uplight."""
+    @callback
+    def _async_update_attrs(self) -> None:
+        """Handle being updated from the coordinator."""
+        self._attr_is_on = self.coordinator.data.uplight_is_on
+        self._attr_brightness = self.coordinator.data.uplight_brightness
+        self._attr_hs_color = self.coordinator.data.uplight_hs_color
+        self._attr_color_temp_kelvin = self.coordinator.data.uplight_kelvin
         _, sat = self.coordinator.data.uplight_hs_color
         if sat > 0:
-            return ColorMode.HS
-        return ColorMode.COLOR_TEMP
-
-    @property
-    def hs_color(self) -> tuple[int, int]:
-        """Return hue and saturation as a tuple."""
-        return self.coordinator.data.uplight_hs_color
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if uplight is on."""
-        return self.coordinator.data.uplight_is_on
+            self._attr_color_mode = ColorMode.HS
+        else:
+            self._attr_color_mode = ColorMode.COLOR_TEMP
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the uplight."""
         duration = int(kwargs[ATTR_TRANSITION]) if ATTR_TRANSITION in kwargs else 0
         await self.coordinator.device.turn_uplight_off(duration)
-        await self.coordinator.async_request_refresh()
+        self._attr_is_on = False
+        self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the uplight."""
         duration = int(kwargs[ATTR_TRANSITION]) if ATTR_TRANSITION in kwargs else 0
         color = hsbk_for_turn_on(self.coordinator.data.uplight_color, **kwargs)
         await self.coordinator.device.turn_uplight_on(color, duration)
-        await self.coordinator.async_request_refresh()
+        await self.coordinator.device.async_update()
+
+        self._attr_is_on = True
+        self._attr_brightness = self.coordinator.device.uplight_brightness
+
+        if self.coordinator.device.uplight_hs_color[1] > 0:
+            self._attr_color_mode = ColorMode.HS
+            self._attr_hs_color = self.coordinator.device.uplight_hs_color
+        else:
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+            self._attr_color_temp_kelvin = self.coordinator.device.uplight_kelvin
+
+        self.async_write_ha_state()
