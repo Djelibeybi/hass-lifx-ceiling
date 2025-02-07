@@ -33,10 +33,13 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     await coordinator.device.async_update()
 
-    async_add_entities([
-        LIFXCeilingDownlight(coordinator),
-        LIFXCeilingUplight(coordinator),
-    ], update_before_add=True)
+    async_add_entities(
+        [
+            LIFXCeilingDownlight(coordinator),
+            LIFXCeilingUplight(coordinator),
+        ],
+        update_before_add=True,
+    )
 
 
 class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
