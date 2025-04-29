@@ -11,11 +11,8 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 
-from .api import (
-    LIFXCeilingConnection,
-    LIFXCeilingError,
-)
-from .const import DOMAIN, INVALID_DEVICE, UDP_BROADCAST_MAC
+from .api import LIFXCeilingConnection, LIFXCeilingError
+from .const import DOMAIN, INVALID_DEVICE
 
 if TYPE_CHECKING:
     from homeassistant.components.zeroconf import ZeroconfServiceInfo
@@ -27,18 +24,17 @@ class LIFXCeilingConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     host: str
+    mac: str
     label: str
-    mac: str | None = None
     group: str
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle user-initiated config flow."""
         if user_input is None:
             return self._async_show_setup_form()
 
         self.host = user_input[CONF_HOST]
+        self.mac = user_input["mac"]
 
         try:
             await self._get_lifx_label(raise_on_progress=False)
@@ -47,17 +43,14 @@ class LIFXCeilingConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self._async_create_entry()
 
-    async def async_step_zeroconf(
-        self, discovery_info: ZeroconfServiceInfo
-    ) -> ConfigFlowResult:
+    async def async_step_zeroconf(self, discovery_info: ZeroconfServiceInfo) -> ConfigFlowResult:
         """Handle Zeroconf-initiated discovery."""
         if not discovery_info.hostname.startswith("D073D5"):
             return self.async_abort(reason="invalid_device")
 
         self.host = discovery_info.host or discovery_info.hostname
-        self.mac = formatted_serial(
-            discovery_info.hostname.removesuffix(".local.").lower()
-        )
+        # Automatically set the MAC from discovery information.
+        self.mac = formatted_serial(discovery_info.hostname.removesuffix(".local.").lower())
 
         await self.async_set_unique_id(self.mac)
         self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
@@ -71,46 +64,41 @@ class LIFXCeilingConfigFlow(ConfigFlow, domain=DOMAIN):
             return self._async_create_entry()
 
         self._set_confirm_only()
-        self.context["title_placeholders"] = {
-            "name": f"{self.label} ({self.group})",
-        }
+        self.context["title_placeholders"] = {"name": f"{self.label} ({self.group})"}
         return self.async_show_form(
             step_id="zeroconf_confirm",
             description_placeholders={"label": self.label, "group": self.group},
         )
 
-    async def async_step_zeroconf_confirm(
-        self, _: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_zeroconf_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Confirm zeroconf discovery."""
-        self.context["title_placeholders"] = {
-            "name": f"{self.label} ({self.group})",
-        }
+        self.context["title_placeholders"] = {"name": f"{self.label} ({self.group})"}
         return self._async_create_entry()
 
     @callback
-    def _async_show_setup_form(
-        self, errors: dict[str, str] | None = None
-    ) -> ConfigFlowResult:
-        """Show the steup form to the user."""
+    def _async_show_setup_form(self, errors: dict[str, str] | None = None) -> ConfigFlowResult:
+        """Show the setup form to the user."""
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST): str,
+                    vol.Required("mac"): str,
                 }
             ),
+            errors=errors,
         )
 
     @callback
     def _async_create_entry(self) -> ConfigFlowResult:
         """Create the config entry."""
         self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
-        return self.async_create_entry(title=self.label, data={CONF_HOST: self.host})
+        # Store both host and mac in the entry data.
+        return self.async_create_entry(title=self.label, data={CONF_HOST: self.host, "mac": self.mac})
 
     async def _get_lifx_label(self, raise_on_progress: bool = True) -> None:
-        """Validate the LIFX device and fetch the label."""
-        conn = LIFXCeilingConnection(host=self.host, mac=self.mac or UDP_BROADCAST_MAC)
+        """Validate the LIFX device and fetch the label and group."""
+        conn = LIFXCeilingConnection(host=self.host, mac=self.mac)
         await conn.async_setup()
 
         if conn.device is not None:
@@ -118,9 +106,8 @@ class LIFXCeilingConfigFlow(ConfigFlow, domain=DOMAIN):
             if not is_ceiling:
                 raise LIFXCeilingError(INVALID_DEVICE)
 
-        await self.async_set_unique_id(
-            formatted_serial(conn.device.mac_addr), raise_on_progress=raise_on_progress
-        )
+        # Use the provided MAC address as the unique identifier.
+        await self.async_set_unique_id(formatted_serial(self.mac), raise_on_progress=raise_on_progress)
         self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
         self.label = conn.device.label
         self.group = conn.device.group
