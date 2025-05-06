@@ -5,23 +5,32 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
     ATTR_TRANSITION,
+    LIGHT_TURN_ON_SCHEMA,
     ColorMode,
     LightEntity,
     LightEntityFeature,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import entity_platform
 
+from .const import HSBK_BRIGHTNESS
 from .entity import LIFXCeilingEntity
 from .util import hsbk_for_turn_on
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.typing import VolDictType
 
     from .coordinator import LIFXCeilingConfigEntry, LIFXCeilingUpdateCoordinator
 
 PARALLEL_UPDATES = 1
+
+SERVICE_LIFX_CEILING_SET_STATE = "set_state"
+
+LIFX_CEILING_SET_STATE_SCHEMA: VolDictType = {**LIGHT_TURN_ON_SCHEMA}
 
 
 async def async_setup_entry(
@@ -32,6 +41,12 @@ async def async_setup_entry(
     """Set up LIFX Ceiling extra lights."""
     coordinator = entry.runtime_data
     await coordinator.device.async_update()
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_LIFX_CEILING_SET_STATE,
+        LIFX_CEILING_SET_STATE_SCHEMA,
+        "set_state",
+    )
 
     async_add_entities(
         [
@@ -101,6 +116,20 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
 
         self.async_write_ha_state()
 
+    async def set_state(self, **kwargs: Any) -> None:
+        """Set the state of the downlight."""
+        duration = int(kwargs.get(ATTR_TRANSITION, 0))
+        override_brightness = kwargs.pop(
+            ATTR_BRIGHTNESS,
+            self.coordinator.device.downlight_color[HSBK_BRIGHTNESS] >> 8,
+        )
+        color = hsbk_for_turn_on(
+            self.coordinator.device.downlight_color,
+            override_brightness=override_brightness,
+            **kwargs,
+        )
+        await self.coordinator.async_set_downlight_state(color=color, duration=duration)
+
 
 class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
     """Represents the LIFX Ceiling Uplight zone."""
@@ -160,3 +189,17 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
             self._attr_color_temp_kelvin = self.coordinator.device.uplight_kelvin
 
         self.async_write_ha_state()
+
+    async def set_state(self, **kwargs: Any) -> None:
+        """Set the state of the uplight."""
+        duration = int(kwargs.get(ATTR_TRANSITION, 0))
+        override_brightness = kwargs.pop(
+            ATTR_BRIGHTNESS,
+            self.coordinator.device.uplight_color[HSBK_BRIGHTNESS] >> 8,
+        )
+        color = hsbk_for_turn_on(
+            self.coordinator.device.uplight_color,
+            override_brightness=override_brightness,
+            **kwargs,
+        )
+        await self.coordinator.async_set_uplight_state(color=color, duration=duration)

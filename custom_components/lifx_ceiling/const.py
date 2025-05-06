@@ -8,6 +8,11 @@ _LOGGER: Logger = getLogger(__package__)
 ATTR_UPLIGHT = "uplight"
 ATTR_POWER = "power"
 ATTR_DOWNLIGHT = "downlight"
+ATTR_HUE = "hue"
+ATTR_SATURATION = "saturation"
+ATTR_BRIGHTNESS = "brightness"
+ATTR_KELVIN = "kelvin"
+ATTR_DURATION = "duration"
 
 CONF_SERIAL = "serial"
 

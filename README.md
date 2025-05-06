@@ -16,18 +16,23 @@ After you add them, two new light entities will be created for the uplight and d
 
 ## Known issues/caveats
 
-1. Scenes should work with version `2025.2.0-beta1` and higher if the scene is recreated.
-    ~~Scenes created in homeHome Assistant are unlikely to work at all, let alone reliably.~~
+1. Using `set_state` with `brightness: 0` has the same effect as using `light.turn_off` for each component.
 
-2. Light state should be reflected correctly when a change is made within 10 seconds for the uplight and downlight from version `2025.2.0-beta1`.
-  ~~Adding the uplight or downlight to your Dashboard is discouraged as the state can be up to 10 seconds behind reality and may bounce between `off` and `on` a few times when the state changes.~~
+1. Use `lifx.set_state` to change both uplight and downlight to the same color as its a lot faster.
 
-3. To turn on just the uplight or downlight without any surprises, use the `light.turn_on` action and explicitly specify the brightness and color or color temp to use.
+1. To turn on just the uplight or downlight without any surprises, use the `light.turn_on` action and explicitly specify the brightness and color or color temp to use.
     - If neither `brightness` nor `brightness_pct` are  used, the light will turn on at full (100%) brightness.
     - If neither `hs_color` nor `color_temp_kelvin` are used, the light will turn on in color temperature mode set to 3500K (neutral).
     - I strongly encourage you to set `transition` to at least `0.25` (or higher) with both `light.turn_on` and `light.turn_off` to make the process less jarring.
 
-4. Turning the main light entity on or off or using `light.turn_on` or `light.turn_off` is a good way to reset both to the same state.
+1. Turning the main light entity on or off or using `light.turn_on` or `light.turn_off` is a good way to reset both to the same state.
+
+1. Scenes should work with version `2025.2.0-beta1` and higher if the scene is recreated.
+    ~~Scenes created in homeHome Assistant are unlikely to work at all, let alone reliably.~~
+
+1. Light state should be reflected correctly when a change is made within 10 seconds for the uplight and downlight from version `2025.2.0-beta1`.
+  ~~Adding the uplight or downlight to your Dashboard is discouraged as the state can be up to 10 seconds behind reality and may bounce between `off` and `on` a few times when the state changes.~~
+
 
 ## Issues? Bugs?
 

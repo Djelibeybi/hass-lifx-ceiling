@@ -1,0 +1,27 @@
+set_state:
+  target:
+    entity:
+      integration: lifx_ceiling
+      domain: light
+  fields:
+    hs_color:
+      example: "[100, 255]"
+      selector:
+        object:
+    brightness:
+      selector:
+        number:
+          min: 0
+          max: 255
+    color_temp_kelvin:
+      selector:
+        color_temp:
+          min: 1500
+          max: 9000
+          unit: "kelvin"
+    transition:
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
