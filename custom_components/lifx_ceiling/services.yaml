@@ -1,0 +1,29 @@
+set_state:
+  name: Set Exact State
+  description: Set the exact state of both uplight and downlight zones without relying on current state. This allows for atomic updates of the light's zones to prevent race conditions.
+  target:
+    entity:
+      integration: lifx_ceiling
+      domain: light
+  fields:
+    uplight:
+      name: Uplight Configuration
+      description: Configuration for the uplight zone
+      selector:
+        object:
+      example: '{"power": true, "brightness": 255, "color_temp_kelvin": 3500}'
+    downlight:
+      name: Downlight Configuration
+      description: Configuration for the downlight zone
+      selector:
+        object:
+      example: '{"power": true, "brightness": 255, "color_temp_kelvin": 3500}'
+    transition:
+      name: Transition
+      description: Duration of the transition in seconds
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+      default: 0

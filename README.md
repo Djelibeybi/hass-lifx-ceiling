@@ -29,6 +29,39 @@ After you add them, two new light entities will be created for the uplight and d
 
 4. Turning the main light entity on or off or using `light.turn_on` or `light.turn_off` is a good way to reset both to the same state.
 
+## New Service: lifx_ceiling.set_state
+
+This integration now provides a custom service `lifx_ceiling.set_state` that allows you to atomically set the exact state of both the uplight and downlight zones.
+
+### Service Parameters
+
+- `uplight` (optional): Configuration for the uplight zone
+  - `power` (boolean): Turn the uplight on or off
+  - `brightness` (0-255): Set the brightness
+  - `color_temp_kelvin` (1500-9000): Set the color temperature
+  - `hs_color` (tuple): Set the hue/saturation color
+  - `rgb_color` (tuple): Set the RGB color
+- `downlight` (optional): Configuration for the downlight zone (same parameters as uplight)
+- `transition` (optional, default: 0): Duration of the transition in seconds (0-3600)
+
+### Example Usage
+
+```yaml
+service: lifx_ceiling.set_state
+target:
+  entity_id: light.office_ceiling_downlight
+data:
+  uplight:
+    power: true
+    brightness: 255
+    color_temp_kelvin: 4000
+  downlight:
+    power: false
+  transition: 1
+```
+
+This will turn on the uplight at full brightness with 4000K color temperature while turning off the downlight, with a 1-second transition.
+
 ## Issues? Bugs?
 
 Please use discussions and issues to check if the issue or bug is already known and if not, please report it.
