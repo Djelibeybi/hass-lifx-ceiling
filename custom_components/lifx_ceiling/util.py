@@ -68,6 +68,7 @@ def hsbk_for_turn_on(
         brightness = 65535
 
     if override_brightness is not None:
+        # Adjust the override brightness from 0-255 to 0-65535
         brightness = (override_brightness << 8) | override_brightness
 
     return hue, saturation, brightness, kelvin

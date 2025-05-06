@@ -119,10 +119,10 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
         self, color: tuple[int, int, int, int], duration: int = 0
     ) -> None:
         """Set the state of the LIFX Ceiling downlight."""
-        if self._state_condition.locked():
-            await self._state_condition.wait()
-
         async with self._state_condition:
+            while self._state_condition.locked():
+                await self._state_condition.wait()
+
             await self.device.async_update()
             await self.device.set_downlight_state(color=color, duration=duration)
             await self._async_refresh()
@@ -132,10 +132,10 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
         self, color: tuple[int, int, int, int], duration: int = 0
     ) -> None:
         """Set the state of the LIFX Ceiling uplight."""
-        if self._state_condition.locked():
-            await self._state_condition.wait()
-
         async with self._state_condition:
+            while self._state_condition.locked():
+                await self._state_condition.wait()
+
             await self.device.async_update()
             await self.device.set_uplight_state(color=color, duration=duration)
             await self._async_refresh()
