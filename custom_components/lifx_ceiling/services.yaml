@@ -1,0 +1,79 @@
+set_state:
+  fields:
+    config_entry:
+      required: true
+      selector:
+        config_entry:
+          integration: lifx_ceiling
+    downlight_hue:
+      default: 0
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: degrees
+    downlight_saturation:
+      default: 0
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: percent
+    downlight_brightness:
+      default: 100
+      example: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: percent
+    downlight_kelvin:
+      default: 3500
+      example: 3500
+      selector:
+        color_temp:
+          min: 1500
+          max: 9000
+          unit: "kelvin"
+    uplight_hue:
+      default: 0
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: degrees
+    uplight_saturation:
+      default: 0
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: percent
+    uplight_brightness:
+      default: 100
+      example: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: percent
+    uplight_kelvin:
+      default: 3500
+      example: 3500
+      selector:
+        color_temp:
+          min: 1500
+          max: 9000
+          unit: "kelvin"
+    transition:
+      default: 0
+      example: 1
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds

@@ -27,7 +27,7 @@
   "services": {
     "set_state": {
       "name": "Set State",
-      "description": "Adjust the hue, saturation, brightness or kelvin of the uplight and downlight of a LIFX Ceiling.",
+      "description": "Adjust the hue, saturation, brightness or kelvin of either the uplight or downlight of a LIFX Ceiling.",
       "fields": {
         "config_entry": {
           "name": "Config entry",
