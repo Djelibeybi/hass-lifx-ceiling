@@ -194,12 +194,6 @@ class LIFXCeiling(Light):
         """Return true if power > 0 and downlight zones max brightness > 0."""
         return bool(self.power_level > 0 and self.downlight_brightness > 0)
 
-    async def set_uplight_state(
-        self, color: tuple[int, int, int, int], duration: int = 0
-    ) -> None:
-        """Set uplight state."""
-        self.set64(tile_index=0, x=7, y=7, width=8, duration=duration, colors=[color])
-
     async def turn_uplight_on(
         self, color: tuple[int, int, int, int], duration: int = 0
     ) -> None:
@@ -246,15 +240,6 @@ class LIFXCeiling(Light):
             await async_execute_lifx(
                 partial(self.set_power, value="off", duration=duration * 1000)
             )
-
-    async def set_downlight_state(
-        self, color: tuple[int, int, int, int], duration: int = 0
-    ) -> None:
-        """Set the downlight state."""
-        await self.async_update()
-        colors = [color] * 63
-        colors.append(self.chain[0][63])
-        self.set64(tile_index=0, x=0, y=0, width=8, duration=duration, colors=colors)
 
     async def turn_downlight_on(
         self, color: tuple[int, int, int, int], duration: int = 0

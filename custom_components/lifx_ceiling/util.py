@@ -20,7 +20,7 @@ def hsbk_for_turn_on(
     current: tuple[int, int, int, int],
     *,
     override_brightness: int | None = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> tuple[int, int, int, int]:
     """Return merged HSBK tuple from current color and Home Assistant kwargs."""
     hue, saturation, brightness, kelvin = [None] * 4

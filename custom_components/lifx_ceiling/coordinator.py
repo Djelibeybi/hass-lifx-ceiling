@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -22,13 +21,49 @@ from .const import (
 )
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
+    from homeassistant.core import HomeAssistant, ServiceCall
 
 
 LIGHT_UPDATE_INTERVAL = 10
 REQUEST_REFRESH_DELAY = 0.35
 
 type LIFXCeilingConfigEntry = ConfigEntry[LIFXCeilingUpdateCoordinator]
+
+
+@dataclass
+class LIFXCeilingSetState:
+    """LIFX Ceiling set state data."""
+
+    config_entry: str
+    transition: int = 0
+    downlight_hue: int = 0
+    downlight_saturation: int = 0
+    downlight_brightness: int = 100
+    downlight_kelvin: int = 3500
+    uplight_hue: int = 0
+    uplight_saturation: int = 0
+    uplight_brightness: int = 100
+    uplight_kelvin: int = 3500
+
+    @property
+    def downlight_hsbk(self) -> tuple[int, int, int, int]:
+        """Return the downlight HSBK values."""
+        return (
+            int(self.downlight_hue / 360 * 65535),
+            int(self.downlight_saturation / 100 * 65535),
+            int(self.downlight_brightness / 100 * 65535),
+            self.downlight_kelvin,
+        )
+
+    @property
+    def uplight_hsbk(self) -> tuple[int, int, int, int]:
+        """Return the uplight HSBK values."""
+        return (
+            int(self.uplight_hue / 360 * 65535),
+            int(self.uplight_saturation / 100 * 65535),
+            int(self.uplight_brightness / 100 * 65535),
+            self.uplight_kelvin,
+        )
 
 
 @dataclass
@@ -75,8 +110,6 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
                 hass, _LOGGER, cooldown=REQUEST_REFRESH_DELAY, immediate=True
             ),
         )
-        self._state_lock = asyncio.Lock()
-        self._state_condition = asyncio.Condition(lock=self._state_lock)
 
     async def _async_setup(self) -> None:
         """Connect to LIFX Ceiling."""
@@ -84,6 +117,39 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
         if isinstance(self._conn.device, LIFXCeiling):
             self.device = self._conn.device
             await self.device.async_setup()
+
+    async def async_set_state(self, call: ServiceCall) -> None:
+        """Set the state of the LIFX Ceiling."""
+        config_entry = call.data.get("config_entry")
+        if config_entry != self._entry.entry_id:
+            _LOGGER.debug(
+                "Ignoring state update for %s, not the current config entry",
+                self._entry.title,
+            )
+            return
+
+        state = LIFXCeilingSetState(**call.data)
+
+        colors = [state.downlight_hsbk] * 63 + [state.uplight_hsbk]
+        self.device.set64(
+            tile_index=0,
+            x=0,
+            y=0,
+            width=8,
+            duration=state.transition,
+            colors=colors,
+        )
+        if (
+            state.downlight_brightness > 0 or state.uplight_brightness > 0
+        ) and self.device.power_level == 0:
+            self.device.set_power("on", duration=state.transition, rapid=True)
+
+        if (
+            state.downlight_brightness == 0 and state.uplight_brightness == 0
+        ) and self.device.power_level > 0:
+            self.device.set_power("off", duration=state.transition, rapid=True)
+
+        await self._async_update_data()
 
     async def _async_update_data(self) -> LIFXCeilingData:
         """Fetch current state from LIFX Ceiling."""
@@ -114,29 +180,3 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
             )
         except LIFXCeilingError as err:
             raise UpdateFailed(err) from err
-
-    async def async_set_downlight_state(
-        self, color: tuple[int, int, int, int], duration: int = 0
-    ) -> None:
-        """Set the state of the LIFX Ceiling downlight."""
-        async with self._state_condition:
-            while self._state_condition.locked():
-                await self._state_condition.wait()
-
-            await self.device.async_update()
-            await self.device.set_downlight_state(color=color, duration=duration)
-            await self._async_refresh()
-            await asyncio.sleep(duration)
-
-    async def async_set_uplight_state(
-        self, color: tuple[int, int, int, int], duration: int = 0
-    ) -> None:
-        """Set the state of the LIFX Ceiling uplight."""
-        async with self._state_condition:
-            while self._state_condition.locked():
-                await self._state_condition.wait()
-
-            await self.device.async_update()
-            await self.device.set_uplight_state(color=color, duration=duration)
-            await self._async_refresh()
-            await asyncio.sleep(duration)

@@ -14,13 +14,52 @@ This integration adds `Light` entities for the uplight and downlight of a LIFX C
 Home Assistant should automatically discover your LIFX Ceiling(s) and prompt you to add them.
 After you add them, two new light entities will be created for the uplight and downlight.
 
+## Using the `set_state` action
+
+The `set_state` can be used to set any combination of hue, saturation, brightness and kelvin to both uplight and downlight at the same time, regardless of their current state.
+
+The default values result in both zones being reset to neutral white at 100% brightness.
+
+To turn off either zone, set the brightness for that zone to 0.
+
+The following table lists the available fields and allowed range of values for each:
+
+| Field name   | Unit | Value |
+| ------------ | ---- | -------------
+| `config_entry` |      | Use Developer Tools to select the config entry, then switch to YAML view. |
+| `downlight_hue`| degree | 0 - 360 |
+| `downlight_saturation` | % | 0 - 100 |
+| `downlight_brightness` | % | 0 - 100 |
+| `downlight_kelvin` | K | 1500 - 9000 |
+| `uplight_hue`| degree | 0 - 360 |
+| `uplight_saturation` | % | 0 - 100 |
+| `uplight_brightness` | % | 0 - 100 |
+| `uplight_kelvin` | K | 1500 - 9000 |
+| `transition` | seconds | 0 - 3600 |
+
+Sample YAML to turn the downlight off and turn the uplight on at full brightness in red:
+
+```yaml
+action: lifx_ceiling.set_state
+data:
+  config_entry: XXXXXXXXXXXXXX
+  downlight_hue: 0
+  downlight_saturation: 0
+  downlight_brightness: 0
+  downlight_kelvin: 3500
+  uplight_hue: 0
+  uplight_saturation: 100
+  uplight_brightness: 100
+  uplight_kelvin: 3500
+  transition: 1
+```
+
 ## Known issues/caveats
 
-1. Using `set_state` with `brightness: 0` has the same effect as using `light.turn_off` for each component.
+1. To turn on just the uplight or downlight without any surprises, use the `lifx_ceiling.set_state` action with the brightness
+   of the zone you don't want to turn on set to 0.
 
-1. Use `lifx.set_state` to change both uplight and downlight to the same color as its a lot faster.
-
-1. To turn on just the uplight or downlight without any surprises, use the `light.turn_on` action and explicitly specify the brightness and color or color temp to use.
+1. If you use the `light.turn_on` action, you should explicitly specify the brightness and color or color temp to use.
     - If neither `brightness` nor `brightness_pct` are  used, the light will turn on at full (100%) brightness.
     - If neither `hs_color` nor `color_temp_kelvin` are used, the light will turn on in color temperature mode set to 3500K (neutral).
     - I strongly encourage you to set `transition` to at least `0.25` (or higher) with both `light.turn_on` and `light.turn_off` to make the process less jarring.

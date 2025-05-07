@@ -27,23 +27,47 @@
   "services": {
     "set_state": {
       "name": "Set State",
-      "description": "Adjust the hue, saturation, brightness or kelvin of either the uplight or downlight of a LIFX Ceiling.",
+      "description": "Adjust the hue, saturation, brightness or kelvin of the uplight and downlight of a LIFX Ceiling.",
       "fields": {
+        "config_entry": {
+          "name": "Config entry",
+          "description": "The config entry to use. This is usually the name of the LIFX Ceiling."
+        },
         "transition": {
           "name": "Transition",
           "description": "Duration it takes to get to next state."
         },
-        "hs_color": {
-          "name": "Hue/saturation color",
-          "description": "Color in hue/sat format. A list of two integers. Hue is 0-360 and Sat is 0-100. Cannot be used with 'Color temperature'."
+        "downlight_hue": {
+          "name": "Downlight hue",
+          "description": "Hue in degrees between 0 and 360."
         },
-        "color_temp_kelvin": {
-          "name": "Color temperature",
-          "description": "Color temperature in Kelvin between 1500 and 9000. Cannot be used with 'Hue/saturation color'."
+        "downlight_kelvin": {
+          "name": "Downlight color temperature",
+          "description": "Color temperature in Kelvin between 1500 and 9000."
         },
-        "brightness": {
-          "name": "Brightness value",
-          "description": "Number indicating brightness, where 0 is off, 1 is the minimum brightness, and 255 is the maximum brightness."
+        "downlight_brightness": {
+          "name": "Downlight brightness",
+          "description": "Brightness in percent, where 0 is off and 100 is the maximum brightness."
+        },
+        "downlight_saturation": {
+          "name": "Downlight saturation",
+          "description": "Saturation in percent, where 0 is off and 100 is the maximum saturation."
+        },
+        "uplight_hue": {
+          "name": "Uplight hue",
+          "description": "Hue in degrees between 0 and 360."
+        },
+        "uplight_kelvin": {
+          "name": "Uplight color temperature",
+          "description": "Color temperature in Kelvin between 1500 and 9000."
+        },
+        "uplight_brightness": {
+          "name": "Uplight brightness",
+          "description": "Brightness in percent, where 0 is off and 100 is the maximum brightness."
+        },
+        "uplight_saturation": {
+          "name": "Uplight saturation",
+          "description": "Saturation in percent, where 0 is off and 100 is the maximum saturation."
         }
       }
     }
