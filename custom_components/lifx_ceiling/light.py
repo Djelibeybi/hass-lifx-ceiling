@@ -11,6 +11,7 @@ from homeassistant.components.light import (
     LightEntityFeature,
 )
 from homeassistant.core import callback
+from homeassistant.helpers.device_registry import format_mac
 
 from .const import _LOGGER
 from .entity import LIFXCeilingEntity
@@ -68,7 +69,7 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
 
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.HS}
         self._attr_name = "Downlight"
-        self._attr_unique_id = f"{device.mac_addr}_downlight"
+        self._attr_unique_id = f"{format_mac(device.mac_addr)}_downlight"
         self._attr_max_color_temp_kelvin = device.max_kelvin
         self._attr_min_color_temp_kelvin = device.min_kelvin
 
@@ -117,7 +118,7 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
 
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.HS}
         self._attr_name = "Uplight"
-        self._attr_unique_id = f"{device.mac_addr}_uplight"
+        self._attr_unique_id = f"{format_mac(device.mac_addr)}_uplight"
         self._attr_max_color_temp_kelvin = device.max_kelvin
         self._attr_min_color_temp_kelvin = device.min_kelvin
 

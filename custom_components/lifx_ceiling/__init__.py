@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 from homeassistant.const import Platform
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DISCOVERY_INTERVAL
+from .const import DISCOVERY_INTERVAL, DOMAIN, SERVICE_LIFX_CEILING_SET_STATE
 from .coordinator import LIFXCeilingConfigEntry, LIFXCeilingUpdateCoordinator
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
+    from homeassistant.core import HomeAssistant, ServiceCall
 
 
 PLATFORMS: list[Platform] = [Platform.LIGHT]
@@ -24,6 +24,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: LIFXCeilingConfigEntry) 
 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    async def handle_set_state(call: ServiceCall) -> None:
+        """Handle the set_state service call."""
+        await coordinator.async_set_state(call)
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_LIFX_CEILING_SET_STATE, handle_set_state
+    )
 
     coordinator.stop_discovery = async_track_time_interval(
         hass, coordinator.async_update, DISCOVERY_INTERVAL
