@@ -1,20 +1,33 @@
 """Extra support for LIFX Ceiling."""
 
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from homeassistant.const import Platform
+from homeassistant.helpers.event import async_track_time_interval
+
+from .const import DISCOVERY_INTERVAL
 from .coordinator import LIFXCeilingConfigEntry, LIFXCeilingUpdateCoordinator
 
-PLATFORMS = [Platform.LIGHT]
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
+
+PLATFORMS: list[Platform] = [Platform.LIGHT]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: LIFXCeilingConfigEntry) -> bool:
-    """Set up extra LIFX Ceiling light entities from config entry."""
+    """Set up LIFX Ceiling Extras."""
     coordinator = LIFXCeilingUpdateCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_update()
 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    coordinator.stop_discovery = async_track_time_interval(
+        hass, coordinator.async_update, DISCOVERY_INTERVAL
+    )
 
     return True
 
@@ -23,4 +36,7 @@ async def async_unload_entry(
     hass: HomeAssistant, entry: LIFXCeilingConfigEntry
 ) -> bool:
     """Unload LIFX Ceiling extras config entry."""
+    data: LIFXCeilingUpdateCoordinator = entry.runtime_data
+    if data.stop_discovery is not None and callable(data.stop_discovery):
+        data.stop_discovery()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

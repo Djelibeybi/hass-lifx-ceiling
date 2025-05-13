@@ -2,119 +2,47 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from aiolifx.aiolifx import Light
+from aiolifx.aiolifx import UDP_BROADCAST_PORT, Light
 from aiolifx.products import product_map
 from aiolifx.products_defs import features_map
-from homeassistant.components.lifx.util import (
-    async_execute_lifx,
-    async_multi_execute_lifx_with_retries,
-)
-
-from .const import DEFAULT_ATTEMPTS, LIFX_CEILING_PRODUCT_IDS, OVERALL_TIMEOUT
+from homeassistant.components.lifx.util import async_execute_lifx
 
 if TYPE_CHECKING:
-    from aiolifx.msgtypes import StateGroup, StateLabel, StateVersion
+    import asyncio
 
-UDP_BROADCAST_PORT = 56700
-UDP_BROADCAST_MAC = "00:00:00:00:00:00"
 MESSAGE_TIMEOUT = 3
 
 CEILING_ZONE_COUNT = 64
-HSBK_HUE = 0
-HSBK_SATURATION = 1
-HSBK_BRIGHTNESS = 2
-HSBK_KELVIN = 3
-
-_LOGGER = logging.getLogger(__package__)
 
 
 class LIFXCeilingError(Exception):
     """LIFX Ceiling specific exception."""
 
 
-class LIFXCeilingConnection:
-    """Establish a connection to the Ceiling."""
-
-    def __init__(self, host: str, mac: str) -> None:
-        """Initialize the connection."""
-        self.host = host
-        self.mac = mac
-        self.device: LIFXCeiling | None = None
-        self.transport: asyncio.DatagramTransport | None = None
-
-    async def async_setup(self) -> None:
-        """Connect to the LIFX Ceiling."""
-        loop = asyncio.get_running_loop()
-        self.transport, self.device = await loop.create_datagram_endpoint(
-            lambda: LIFXCeiling(loop, self.mac, self.host),
-            remote_addr=(self.host, UDP_BROADCAST_PORT),
-        )
-
-    def async_stop(self) -> None:
-        """Close the transport."""
-        if self.transport is not None:
-            self.transport.close()
-
-
 class LIFXCeiling(Light):
     """Represents a LIFX Ceiling."""
 
-    async def async_is_lifx_ceiling(self) -> bool:
-        """Return true if this is a LIFX Ceiling."""
-        if self.label is None or not self.label:
-            resp: StateLabel = await async_execute_lifx(self.get_label)
-            self.label = resp.label.decode().replace("\x00", "")
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        mac_addr: str,
+        ip_addr: str,
+        port: int = UDP_BROADCAST_PORT,
+        parent: Any | None = None,
+    ) -> None:
+        """Initialize the LIFX Ceiling."""
+        super().__init__(loop, mac_addr, ip_addr, port, parent)
 
-        if self.group is None or not self.group:
-            resp: StateGroup = await async_execute_lifx(self.get_group)
-            self.group = resp.label.decode().replace("\x00", "")
-
-        if self.product is None:
-            resp: StateVersion = await async_execute_lifx(self.get_version)
-            self.product = resp.product
-
-        return self.product in LIFX_CEILING_PRODUCT_IDS
-
-    async def async_setup(self) -> None:
-        """Update from device."""
-        if self.product is None:
-            await async_execute_lifx(self.get_version)
-        if self.host_firmware_version is None:
-            await async_execute_lifx(self.get_hostfirmware)
-        if self.label is None:
-            await async_execute_lifx(self.get_color)
-        if self.group is None:
-            await async_execute_lifx(self.get_group)
-
-        if self.product is not None and (
-            self.tile_devices is None or len(self.tile_devices) == 0
-        ):
-            await async_multi_execute_lifx_with_retries(
-                [
-                    self.get_device_chain,
-                    partial(self.get64, tile_index=0, length=1, width=8),
-                ],
-                DEFAULT_ATTEMPTS,
-                OVERALL_TIMEOUT,
-            )
-
-        await self.async_update()
-
-    async def async_update(self) -> None:
-        """Update internal state from device."""
-        await async_multi_execute_lifx_with_retries(
-            [
-                self.get_color,
-                partial(self.get64, tile_index=0, length=1, width=8),
-            ],
-            DEFAULT_ATTEMPTS,
-            OVERALL_TIMEOUT,
-        )
+    @classmethod
+    def cast(cls, device: Light) -> LIFXCeiling:
+        """Cast the device to LIFXCeiling."""
+        assert isinstance(device, Light)  # noqa: S101
+        device.__class__ = cls
+        assert isinstance(device, LIFXCeiling)  # noqa: S101
+        return device
 
     @property
     def min_kelvin(self) -> int:
@@ -226,7 +154,6 @@ class LIFXCeiling(Light):
         If the downlight is off, turn off the entire light.
         """
         if self.downlight_is_on is True:
-            await self.async_update()
             hue, saturation, _, kelvin = self.chain[0][63]
             self.set64(
                 tile_index=0,
@@ -273,7 +200,6 @@ class LIFXCeiling(Light):
         If the uplight is off, turn off the entire device.
         """
         if self.uplight_is_on:
-            await self.async_update()
             colors = [(h, s, 0, k) for h, s, _, k in self.chain[0][:63]]
             colors.append(self.chain[0][63])
             self.set64(

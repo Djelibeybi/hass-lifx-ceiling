@@ -1,27 +1,13 @@
 {
-"config": {
+  "config": {
     "step": {
-      "user": {
-        "description": "Provide the IP address for your LIFX Ceiling.",
-        "data": {
-          "host": "[%key:common::config_flow::data::host%]"
-        },
-        "data_description": {
-          "host": "The hostname or IP address of your LIFX Ceiling."
-        }
-      },
-      "zeroconf_confirm": {
-        "description": "Do you want to add an uplight and downlight to {label} ({group})?"
+      "confirm": {
+        "description": "[%key:common::config_flow::description::confirm_setup%]"
       }
     },
-    "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_device": "Device is not a LIFX Ceiling"
-    },
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_device": "[%key:common::config_flow::abort::no_devices_found%]"
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
+      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]"
     }
   }
 }

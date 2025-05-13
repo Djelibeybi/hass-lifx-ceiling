@@ -2,112 +2,124 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
-from homeassistant.helpers.debounce import Debouncer
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.components.lifx.const import DOMAIN as LIFX_DOMAIN
+from homeassistant.components.lifx.const import LIFX_CEILING_PRODUCT_IDS
+from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
+from homeassistant.core import callback
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .api import (
-    LIFXCeiling,
-    LIFXCeilingConnection,
-    LIFXCeilingError,
-)
-from .const import (
-    _LOGGER,
-    SCAN_INTERVAL,
-)
+from .api import LIFXCeiling
+from .const import _LOGGER
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.components.lifx.manager import LIFXManager
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
-
-
-LIGHT_UPDATE_INTERVAL = 10
-REQUEST_REFRESH_DELAY = 0.35
 
 type LIFXCeilingConfigEntry = ConfigEntry[LIFXCeilingUpdateCoordinator]
 
 
-@dataclass
-class LIFXCeilingData:
-    """LIFX data stored in the DataUpdateCoordinator."""
-
-    downlight_brightness: int
-    downlight_color: tuple[int, int, int, int]
-    downlight_hs_color: tuple[float, float]
-    downlight_is_on: bool
-    downlight_kelvin: int
-    label: str
-    max_kelvin: int
-    min_kelvin: int
-    model: str
-    power_level: int
-    serial: str
-    suggested_area: str
-    sw_version: str
-    uplight_brightness: int
-    uplight_color: tuple[int, int, int, int]
-    uplight_hs_color: tuple[float, float]
-    uplight_is_on: bool
-    uplight_kelvin: int
-
-
-class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[LIFXCeilingData]):
+class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
     """LIFX Ceiling data update coordinator."""
 
     config_entry: LIFXCeilingConfigEntry
 
-    def __init__(self, hass: HomeAssistant, entry: LIFXCeilingConfigEntry) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: LIFXCeilingConfigEntry,
+    ) -> None:
         """Initialize the coordinator."""
-        self._entry = entry
-        self._conn = LIFXCeilingConnection(entry.data[CONF_HOST], entry.unique_id)
-        self.device: LIFXCeiling | None = None
         super().__init__(
-            hass,
-            _LOGGER,
-            config_entry=entry,
-            name=f"{entry.title} ({entry.data[CONF_HOST]})",
-            update_interval=SCAN_INTERVAL,
-            request_refresh_debouncer=Debouncer(
-                hass, _LOGGER, cooldown=REQUEST_REFRESH_DELAY, immediate=True
-            ),
+            hass=hass,
+            logger=_LOGGER,
+            config_entry=config_entry,
+            name="LIFX Ceiling",
         )
 
-    async def _async_setup(self) -> None:
-        """Connect to LIFX Ceiling."""
-        await self._conn.async_setup()
-        if isinstance(self._conn.device, LIFXCeiling):
-            self.device = self._conn.device
-            await self.device.async_setup()
+        self.stop_discovery: Callable[[], None] | None = None
+        self._discovery_callback: Callable[[LIFXCeiling], None] | None = None
+        self._ceiling_coordinators: dict[str, LIFXUpdateCoordinator] = {}
+        self._ceilings: set[LIFXCeiling] = set()
 
-    async def _async_update_data(self) -> LIFXCeilingData:
-        """Fetch current state from LIFX Ceiling."""
-        assert isinstance(self.device, LIFXCeiling)  # noqa: S101
+    @property
+    def devices(self) -> list[LIFXCeiling]:
+        """Return a list of instantiated LIFX Ceiling devices."""
+        return list(self._ceilings)
 
-        try:
-            await self.device.async_update()
-            light = self.device
-            return LIFXCeilingData(
-                downlight_brightness=light.downlight_brightness,
-                downlight_color=light.downlight_color,
-                downlight_hs_color=light.downlight_hs_color,
-                downlight_is_on=light.downlight_is_on,
-                downlight_kelvin=light.downlight_kelvin,
-                label=light.label,
-                max_kelvin=light.max_kelvin,
-                min_kelvin=light.min_kelvin,
-                model=light.model,
-                power_level=light.power_level,
-                serial=light.mac_addr,
-                suggested_area=light.group,
-                sw_version=light.host_firmware_version,
-                uplight_brightness=light.uplight_brightness,
-                uplight_color=light.uplight_color,
-                uplight_hs_color=light.uplight_hs_color,
-                uplight_is_on=light.uplight_is_on,
-                uplight_kelvin=light.uplight_kelvin,
-            )
-        except LIFXCeilingError as err:
-            raise UpdateFailed(err) from err
+    @property
+    def discovery_callback(self) -> Callable[[LIFXCeiling], None] | None:
+        """Return the discovery callback for the LIFX Ceiling Finder."""
+        return self._discovery_callback
+
+    @callback
+    def set_discovery_callback(
+        self, callback: Callable[[LIFXCeiling], None]
+    ) -> Callable[[LIFXCeiling], None]:
+        """Set the discovery callback for the LIFX Ceiling Finder."""
+        old_callback = self._discovery_callback
+        self._discovery_callback = callback
+        return old_callback
+
+    def async_add_core_listener(
+        self, device: LIFXCeiling, callback: Callable[[], None]
+    ) -> None:
+        """Set the update listener for the LIFX Ceiling Finder."""
+        self._ceiling_coordinators[device.mac_addr].async_add_listener(callback)
+
+    async def async_update(self) -> None:
+        """Fetch new LIFX Ceiling coordinators from the core integration."""
+        _LOGGER.debug("Looking for new LIFX Ceiling devices")
+
+        lifx_data: dict[str, LIFXManager | LIFXUpdateCoordinator] = self.hass.data[
+            LIFX_DOMAIN
+        ]
+
+        lifx_coordinators = {
+            coordinator
+            for coordinator in lifx_data.values()
+            if isinstance(coordinator, LIFXUpdateCoordinator)
+        }
+
+        for coordinator in lifx_coordinators:
+            if (
+                coordinator.is_matrix
+                and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
+                and coordinator.device.mac_addr not in self._ceiling_coordinators
+            ):
+                # Cast the existing connection to a LIFX Ceiling objects
+                ceiling = LIFXCeiling.cast(coordinator.device)
+                self._ceiling_coordinators[ceiling.mac_addr] = coordinator
+
+                self._ceilings.add(ceiling)
+
+                if self._discovery_callback and callable(self._discovery_callback):
+                    self._discovery_callback(ceiling)
+
+    async def turn_uplight_on(
+        self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0
+    ) -> None:
+        """Turn on the uplight."""
+        await device.turn_uplight_on(color, duration)
+        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+
+    async def turn_uplight_off(self, device: LIFXCeiling, duration: int = 0) -> None:
+        """Turn off the uplight."""
+        await device.turn_uplight_off(duration)
+        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+
+    async def turn_downlight_on(
+        self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0
+    ) -> None:
+        """Turn on the downlight."""
+        await device.turn_downlight_on(color, duration)
+        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+
+    async def turn_downlight_off(self, device: LIFXCeiling, duration: int = 0) -> None:
+        """Turn off the downlight."""
+        await device.turn_downlight_off(duration)
+        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
