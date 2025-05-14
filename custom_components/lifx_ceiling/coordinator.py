@@ -31,6 +31,7 @@ from .const import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
 
     from homeassistant.components.lifx.manager import LIFXManager
     from homeassistant.config_entries import ConfigEntry
@@ -87,7 +88,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         """Set the update listener for the LIFX Ceiling Finder."""
         self._ceiling_coordinators[device.mac_addr].async_add_listener(callback)
 
-    async def async_update(self) -> None:
+    async def async_update(self, update_time: datetime | None = None) -> None:
         """Fetch new LIFX Ceiling coordinators from the core integration."""
         _LOGGER.debug("Looking for new LIFX Ceiling devices")
 
