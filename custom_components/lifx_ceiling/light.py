@@ -13,7 +13,6 @@ from homeassistant.components.light import (
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 
-from .const import _LOGGER
 from .entity import LIFXCeilingEntity
 from .util import hsbk_for_turn_on
 
@@ -40,7 +39,6 @@ async def async_setup_entry(
 
     @callback
     def _add_ceiling_entities(device: LIFXCeiling) -> None:
-        _LOGGER.debug("Adding new LIFX Ceiling device: %s", device.label)
         async_add_entities(
             [
                 LIFXCeilingDownlight(coordinator, device),
@@ -76,9 +74,6 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
     @callback
     def _update_callback(self) -> None:
         """Handle coordinator updates."""
-        _LOGGER.debug(
-            "Update triggered by core LIFX integration for %s", self._device.label
-        )
         self._attr_is_on = self._device.downlight_is_on
         self._attr_brightness = self._device.downlight_brightness
         self._attr_hs_color = self._device.downlight_hs_color
@@ -100,11 +95,11 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
         duration = int(kwargs.get(ATTR_TRANSITION, 0))
         color = hsbk_for_turn_on(self._device.downlight_color, **kwargs)
         await self.coordinator.turn_downlight_on(self._device, color, duration)
-        self.async_write_ha_state(self)
+        self.async_write_ha_state()
 
 
 class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
-    """Represents the LIFX Ceiling dulight zone."""
+    """Represents the LIFX Ceiling uplight zone."""
 
     _attr_supported_features = LightEntityFeature.TRANSITION
 
@@ -125,9 +120,6 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
     @callback
     def _update_callback(self) -> None:
         """Handle device updates."""
-        _LOGGER.debug(
-            "Update triggered by core LIFX integration for %s", self._device.label
-        )
         self._attr_is_on = self._device.uplight_is_on
         self._attr_brightness = self._device.uplight_brightness
         self._attr_hs_color = self._device.uplight_hs_color

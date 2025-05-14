@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import homeassistant.util.color as color_util
 from homeassistant.components.light import (
@@ -13,7 +13,34 @@ from homeassistant.components.light import (
     ATTR_HS_COLOR,
 )
 
-from .const import _LOGGER, HSBK_BRIGHTNESS, HSBK_HUE, HSBK_KELVIN, HSBK_SATURATION
+from .const import (
+    _LOGGER,
+    DOMAIN,
+    HSBK_BRIGHTNESS,
+    HSBK_HUE,
+    HSBK_KELVIN,
+    HSBK_SATURATION,
+)
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+
+
+def has_single_config_entry(hass: HomeAssistant) -> bool:
+    """Return if there is a single config entry for the integration."""
+    return (
+        hass.config_entries.async_entry_for_domain_unique_id(DOMAIN, DOMAIN) is not None
+    )
+
+
+def async_get_legacy_entries(hass: HomeAssistant) -> list[ConfigEntry]:
+    """Get the legacy config entry if it exists."""
+    return [
+        entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.unique_id != DOMAIN
+    ]
 
 
 def hsbk_for_turn_on(

@@ -174,35 +174,33 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
             device_registry = dr.async_get(self.hass)
             device_entry = device_registry.async_get(device_id)
 
+            device: LIFXCeiling | None = None
             for identifier in device_entry.identifiers:
-                if identifier[0] == DOMAIN:
+                if (
+                    identifier[0] == DOMAIN
+                    and identifier[1] in self._ceiling_coordinators
+                ):
                     device = self._ceiling_coordinators.get(identifier[1]).device
-                    if device is None:
-                        _LOGGER.warning(
-                            "Device %s not found in LIFX Ceiling devices", device_id
-                        )
-                        return
 
-                    if downlight_brightness == 0 and uplight_brightness == 0:
+            if device is not None and isinstance(device, LIFXCeiling):
+                if downlight_brightness == 0 and uplight_brightness == 0:
+                    await async_execute_lifx(
+                        partial(device.set_power, value="off", duration=transition)
+                    )
+                else:
+                    colors = [downlight_color] * 63 + [uplight_color]
+                    device.set64(
+                        tile_index=0,
+                        x=0,
+                        y=0,
+                        width=8,
+                        duration=transition,
+                        colors=colors,
+                    )
+                    if device.power_level == 0:
                         await async_execute_lifx(
-                            partial(device.set_power, value="off", duration=transition)
+                            partial(device.set_power, value="on", duration=transition)
                         )
-                    else:
-                        colors = [downlight_color] * 63 + [uplight_color]
-                        device.set64(
-                            tile_index=0,
-                            x=0,
-                            y=0,
-                            width=8,
-                            duration=transition,
-                            colors=colors,
-                        )
-                        if device.power_level == 0:
-                            await async_execute_lifx(
-                                partial(
-                                    device.set_power, value="on", duration=transition
-                                )
-                            )
 
     async def turn_uplight_on(
         self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0

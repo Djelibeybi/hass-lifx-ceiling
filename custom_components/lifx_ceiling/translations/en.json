@@ -1,19 +1,19 @@
 {
   "config": {
+    "abort": {
+      "no_devices_found": "No devices found on the network",
+      "single_instance_allowed": "Already configured. Only a single configuration possible."
+    },
     "step": {
       "confirm": {
-        "description": "[%key:common::config_flow::description::confirm_setup%]"
+        "description": "Do you want to start setup?"
       }
-    },
-    "abort": {
-      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
-      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]"
     }
   },
   "services": {
     "set_state": {
       "name": "Set State",
-      "description": "Set the state of multiple LIFX Ceiling light zones. Set the brightess to 0 to turn off a particular zone.",
+      "description": "Set the state of multiple LIFX Ceiling light zones. Set the brightness to 0 to turn off a particular zone.",
       "fields": {
         "device_id": {
           "name": "Devices",

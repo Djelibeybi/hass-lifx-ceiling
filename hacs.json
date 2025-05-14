@@ -1,5 +1,5 @@
 {
-    "name": "LIFX Ceiling Extras",
+    "name": "LIFX Ceiling",
     "hide_default_branch": true,
     "homeassistant": "2025.1.0",
     "render_readme": true
