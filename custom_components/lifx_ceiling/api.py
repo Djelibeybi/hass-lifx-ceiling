@@ -35,11 +35,9 @@ class LIFXCeiling(Light):
         ip_addr: str,
         port: int = UDP_BROADCAST_PORT,
         parent: Any | None = None,
-
     ) -> None:
         """Initialize the LIFX Ceiling."""
         super().__init__(loop, mac_addr, ip_addr, port, parent)
-
 
     @property
     def uplight_zone(self) -> int:
@@ -52,7 +50,7 @@ class LIFXCeiling(Light):
         return self._uplight_zone
 
     @property
-    def downlight_zones(self) -> range:
+    def downlight_zones(self) -> slice:
         """Return the downlight zones."""
         if self._downlight_zones is None:
             if self.product in LIFX_CEILING_13X26_PRODUCT_IDS:
@@ -121,7 +119,9 @@ class LIFXCeiling(Light):
     @property
     def downlight_brightness(self) -> int:
         """Return max brightness value for all downlight zones."""
-        unscaled = max(brightness for _, _, brightness, _ in self.chain[0][self.downlight_zones])
+        unscaled = max(
+            brightness for _, _, brightness, _ in self.chain[0][self.downlight_zones]
+        )
         return unscaled >> 8
 
     @property
@@ -133,7 +133,9 @@ class LIFXCeiling(Light):
     @property
     def downlight_color(self) -> tuple[int, int, int, int]:
         """Return zone 0 hue, saturation, kelvin with max brightness."""
-        brightness = max(brightness for _, _, brightness, _ in self.chain[0][self.downlight_zones])
+        brightness = max(
+            brightness for _, _, brightness, _ in self.chain[0][self.downlight_zones]
+        )
         hue, saturation, _, kelvin = self.chain[0][0]
         return hue, saturation, brightness, kelvin
 
@@ -163,7 +165,9 @@ class LIFXCeiling(Light):
             )
         else:
             # The device is off, so set the downlight brightess to 0 first.
-            colors = [(h, s, 0, k) for h, s, _, k in self.chain[0][self.downlight_zones]]
+            colors = [
+                (h, s, 0, k) for h, s, _, k in self.chain[0][self.downlight_zones]
+            ]
             colors.append(color)
 
             self.set64(tile_index=0, x=0, y=0, width=8, duration=0, colors=colors)
@@ -202,7 +206,7 @@ class LIFXCeiling(Light):
         Color is a tuple of hue, saturation, brightness and kelvin values (0-65535).
         Duration is the time in milliseconds to transition from current state to color.
         """
-        colors = [color] * self.uplight_zone
+        colors = [color] * self.downlight_zones.stop
         if self.power_level > 0:
             colors.append(self.chain[0][self.uplight_zone])
             self.set64(
@@ -225,7 +229,9 @@ class LIFXCeiling(Light):
         If the uplight is off, turn off the entire device.
         """
         if self.uplight_is_on:
-            colors = [(h, s, 0, k) for h, s, _, k in self.chain[0][self.downlight_zones]]
+            colors = [
+                (h, s, 0, k) for h, s, _, k in self.chain[0][self.downlight_zones]
+            ]
             colors.append(self.chain[0][self.uplight_zone])
             self.set64(
                 tile_index=0,

@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .api import LIFXCeiling
 from .const import (
     _LOGGER,
+    ALL_CEILING_PRODUCT_IDS,
     ATTR_DOWNLIGHT_BRIGHTNESS,
     ATTR_DOWNLIGHT_HUE,
     ATTR_DOWNLIGHT_KELVIN,
@@ -26,8 +27,6 @@ from .const import (
     ATTR_UPLIGHT_KELVIN,
     ATTR_UPLIGHT_SATURATION,
     DOMAIN,
-    LIFX_CEILING_13X26_PRODUCT_IDS,
-    LIFX_CEILING_PRODUCT_IDS,
 )
 
 if TYPE_CHECKING:
@@ -106,10 +105,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         for coordinator in lifx_coordinators:
             if (
                 coordinator.is_matrix
-                and (
-                    coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
-                    or coordinator.device.product in LIFX_CEILING_13X26_PRODUCT_IDS
-                )
+                and coordinator.device.product in ALL_CEILING_PRODUCT_IDS
                 and coordinator.device.mac_addr not in self._ceiling_coordinators
             ):
                 # Cast the existing connection to a LIFX Ceiling objects
