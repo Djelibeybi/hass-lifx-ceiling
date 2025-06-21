@@ -6,7 +6,6 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from homeassistant.components.lifx.const import DOMAIN as LIFX_DOMAIN
-from homeassistant.components.lifx.const import LIFX_CEILING_PRODUCT_IDS
 from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
 from homeassistant.components.lifx.util import async_execute_lifx
 from homeassistant.components.light import ATTR_TRANSITION
@@ -18,6 +17,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .api import LIFXCeiling
 from .const import (
     _LOGGER,
+    ALL_CEILING_PRODUCT_IDS,
     ATTR_DOWNLIGHT_BRIGHTNESS,
     ATTR_DOWNLIGHT_HUE,
     ATTR_DOWNLIGHT_KELVIN,
@@ -105,7 +105,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         for coordinator in lifx_coordinators:
             if (
                 coordinator.is_matrix
-                and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
+                and coordinator.device.product in ALL_CEILING_PRODUCT_IDS
                 and coordinator.device.mac_addr not in self._ceiling_coordinators
             ):
                 # Cast the existing connection to a LIFX Ceiling objects
