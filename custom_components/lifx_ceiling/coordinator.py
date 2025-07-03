@@ -5,12 +5,13 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING
 
+from awesomeversion import AwesomeVersion
 from homeassistant.components.lifx.const import DOMAIN as LIFX_DOMAIN
 from homeassistant.components.lifx.const import LIFX_CEILING_PRODUCT_IDS
 from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
 from homeassistant.components.lifx.util import async_execute_lifx
 from homeassistant.components.light import ATTR_TRANSITION
-from homeassistant.const import ATTR_DEVICE_ID
+from homeassistant.const import ATTR_DEVICE_ID, MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -27,13 +28,13 @@ from .const import (
     ATTR_UPLIGHT_KELVIN,
     ATTR_UPLIGHT_SATURATION,
     DOMAIN,
+    RUNTIME_DATA_HASS_VERSION,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from datetime import datetime
 
-    from homeassistant.components.lifx.manager import LIFXManager
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant, ServiceCall
 
@@ -62,6 +63,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         self._discovery_callback: Callable[[LIFXCeiling], None] | None = None
         self._ceiling_coordinators: dict[str, LIFXUpdateCoordinator] = {}
         self._ceilings: set[LIFXCeiling] = set()
+        self._hass_version = AwesomeVersion(f"{MAJOR_VERSION}.{MINOR_VERSION}")
 
     @property
     def devices(self) -> list[LIFXCeiling]:
@@ -92,30 +94,44 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         """Fetch new LIFX Ceiling coordinators from the core integration."""
         _LOGGER.debug("Looking for new LIFX Ceiling devices")
 
-        lifx_data: dict[str, LIFXManager | LIFXUpdateCoordinator] = self.hass.data[
-            LIFX_DOMAIN
+        if self._hass_version < AwesomeVersion(RUNTIME_DATA_HASS_VERSION):
+            # For versions before 2025.7.0, we need to use the legacy hass.data storage
+            possible = list(self.hass.data[LIFX_DOMAIN].values())
+        else:
+            # For versions 2025.7.0 and later, we can use the new entry runtime_data
+            possible = [
+                entry.runtime_data
+                for entry in self.hass.config_entries.async_loaded_entries(LIFX_DOMAIN)
+            ]
+
+        lifx_coordinators: list[LIFXUpdateCoordinator] = [
+            coordinator
+            for coordinator in possible
+            if (
+                isinstance(coordinator, LIFXUpdateCoordinator)
+                and (
+                    coordinator.is_matrix
+                    and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
+                    and coordinator.device.mac_addr not in self._ceiling_coordinators
+                )
+            )
         ]
 
-        lifx_coordinators = {
-            coordinator
-            for coordinator in lifx_data.values()
-            if isinstance(coordinator, LIFXUpdateCoordinator)
-        }
+        _LOGGER.debug(
+            "Found %d new LIFX Ceiling coordinators: %s",
+            len(lifx_coordinators),
+            [coordinator.device.mac_addr for coordinator in lifx_coordinators],
+        )
 
         for coordinator in lifx_coordinators:
-            if (
-                coordinator.is_matrix
-                and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
-                and coordinator.device.mac_addr not in self._ceiling_coordinators
-            ):
-                # Cast the existing connection to a LIFX Ceiling objects
-                ceiling = LIFXCeiling.cast(coordinator.device)
-                self._ceiling_coordinators[ceiling.mac_addr] = coordinator
+            # Cast the existing connection to a LIFX Ceiling objects
+            ceiling = LIFXCeiling.cast(coordinator.device)
+            self._ceiling_coordinators[ceiling.mac_addr] = coordinator
 
-                self._ceilings.add(ceiling)
+            self._ceilings.add(ceiling)
 
-                if self._discovery_callback and callable(self._discovery_callback):
-                    self._discovery_callback(ceiling)
+            if self._discovery_callback and callable(self._discovery_callback):
+                self._discovery_callback(ceiling)
 
     async def async_set_state(self, call: ServiceCall) -> None:
         """Handle the set_state service call."""
