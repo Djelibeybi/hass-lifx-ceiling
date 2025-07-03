@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import homeassistant.util.color as color_util
+from awesomeversion import AwesomeVersion
+from homeassistant.components.lifx.const import DOMAIN as LIFX_DOMAIN
+from homeassistant.components.lifx.const import LIFX_CEILING_PRODUCT_IDS
+from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_BRIGHTNESS_PCT,
@@ -12,6 +16,7 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
 )
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 
 from .const import (
     _LOGGER,
@@ -20,11 +25,47 @@ from .const import (
     HSBK_HUE,
     HSBK_KELVIN,
     HSBK_SATURATION,
+    RUNTIME_DATA_HASS_VERSION,
 )
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
+
+
+def find_lifx_coordinators(hass: HomeAssistant) -> list[LIFXUpdateCoordinator]:
+    """Find all LIFX coordinators in Home Assistant's device registry."""
+    if AwesomeVersion(f"{MAJOR_VERSION}.{MINOR_VERSION}") < AwesomeVersion(
+        RUNTIME_DATA_HASS_VERSION
+    ):
+        # For versions before 2025.7.0, we need to use the legacy hass.data storage
+        possible = list(hass.data[LIFX_DOMAIN].values())
+    else:
+        # For versions 2025.7.0 and later, we can use the new entry runtime_data
+        possible = [
+            entry.runtime_data
+            for entry in hass.config_entries.async_loaded_entries(LIFX_DOMAIN)
+        ]
+
+    coordinators: list[LIFXUpdateCoordinator] = [
+        coordinator
+        for coordinator in possible
+        if (
+            isinstance(coordinator, LIFXUpdateCoordinator)
+            and (
+                coordinator.is_matrix
+                and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
+            )
+        )
+    ]
+
+    _LOGGER.debug(
+        "Found %d LIFX Ceiling coordinators: %s",
+        len(coordinators),
+        [coordinator.device.mac_addr for coordinator in coordinators],
+    )
+
+    return coordinators
 
 
 def has_single_config_entry(hass: HomeAssistant) -> bool:

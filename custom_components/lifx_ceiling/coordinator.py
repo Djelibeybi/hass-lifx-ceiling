@@ -6,9 +6,6 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from awesomeversion import AwesomeVersion
-from homeassistant.components.lifx.const import DOMAIN as LIFX_DOMAIN
-from homeassistant.components.lifx.const import LIFX_CEILING_PRODUCT_IDS
-from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
 from homeassistant.components.lifx.util import async_execute_lifx
 from homeassistant.components.light import ATTR_TRANSITION
 from homeassistant.const import ATTR_DEVICE_ID, MAJOR_VERSION, MINOR_VERSION
@@ -28,13 +25,14 @@ from .const import (
     ATTR_UPLIGHT_KELVIN,
     ATTR_UPLIGHT_SATURATION,
     DOMAIN,
-    RUNTIME_DATA_HASS_VERSION,
 )
+from .util import find_lifx_coordinators
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from datetime import datetime
 
+    from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant, ServiceCall
 
@@ -94,34 +92,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         """Fetch new LIFX Ceiling coordinators from the core integration."""
         _LOGGER.debug("Looking for new LIFX Ceiling devices")
 
-        if self._hass_version < AwesomeVersion(RUNTIME_DATA_HASS_VERSION):
-            # For versions before 2025.7.0, we need to use the legacy hass.data storage
-            possible = list(self.hass.data[LIFX_DOMAIN].values())
-        else:
-            # For versions 2025.7.0 and later, we can use the new entry runtime_data
-            possible = [
-                entry.runtime_data
-                for entry in self.hass.config_entries.async_loaded_entries(LIFX_DOMAIN)
-            ]
-
-        lifx_coordinators: list[LIFXUpdateCoordinator] = [
-            coordinator
-            for coordinator in possible
-            if (
-                isinstance(coordinator, LIFXUpdateCoordinator)
-                and (
-                    coordinator.is_matrix
-                    and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
-                    and coordinator.device.mac_addr not in self._ceiling_coordinators
-                )
-            )
-        ]
-
-        _LOGGER.debug(
-            "Found %d new LIFX Ceiling coordinators: %s",
-            len(lifx_coordinators),
-            [coordinator.device.mac_addr for coordinator in lifx_coordinators],
-        )
+        lifx_coordinators = find_lifx_coordinators(self.hass)
 
         for coordinator in lifx_coordinators:
             # Cast the existing connection to a LIFX Ceiling objects
