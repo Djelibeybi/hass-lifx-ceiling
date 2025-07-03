@@ -92,7 +92,11 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         """Fetch new LIFX Ceiling coordinators from the core integration."""
         _LOGGER.debug("Looking for new LIFX Ceiling devices")
 
-        lifx_coordinators = find_lifx_coordinators(self.hass)
+        lifx_coordinators = [
+            coordinator
+            for coordinator in find_lifx_coordinators(self.hass)
+            if coordinator.device.mac_addr not in self._ceiling_coordinators
+        ]
 
         for coordinator in lifx_coordinators:
             # Cast the existing connection to a LIFX Ceiling objects
