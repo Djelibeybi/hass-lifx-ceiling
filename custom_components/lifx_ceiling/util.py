@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import homeassistant.util.color as color_util
-from awesomeversion import AwesomeVersion
 from homeassistant.components.lifx.const import DOMAIN as LIFX_DOMAIN
-from homeassistant.components.lifx.const import LIFX_CEILING_PRODUCT_IDS
 from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -16,55 +16,38 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
 )
-from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 
 from .const import (
     _LOGGER,
+    DEFAULT_ATTEMPTS,
     DOMAIN,
     HSBK_BRIGHTNESS,
     HSBK_HUE,
     HSBK_KELVIN,
     HSBK_SATURATION,
-    RUNTIME_DATA_HASS_VERSION,
+    LIFX_CEILING_PRODUCT_IDS,
+    OVERALL_TIMEOUT,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from aiolifx.aiolifx import Light
+    from aiolifx.message import Message
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
 
 def find_lifx_coordinators(hass: HomeAssistant) -> list[LIFXUpdateCoordinator]:
     """Find all LIFX coordinators in Home Assistant's device registry."""
-    if AwesomeVersion(f"{MAJOR_VERSION}.{MINOR_VERSION}") < AwesomeVersion(
-        RUNTIME_DATA_HASS_VERSION
-    ):
-        # For versions before 2025.7.0, we need to use the legacy hass.data storage
-        possible = list(hass.data[LIFX_DOMAIN].values())
-    else:
-        # For versions 2025.7.0 and later, we can use the new entry runtime_data
-        possible = [
-            entry.runtime_data
-            for entry in hass.config_entries.async_loaded_entries(LIFX_DOMAIN)
-        ]
-
     coordinators: list[LIFXUpdateCoordinator] = [
-        coordinator
-        for coordinator in possible
-        if (
-            isinstance(coordinator, LIFXUpdateCoordinator)
-            and (
-                coordinator.is_matrix
-                and coordinator.device.product in LIFX_CEILING_PRODUCT_IDS
-            )
-        )
+        entry.runtime_data
+        for entry in hass.config_entries.async_loaded_entries(LIFX_DOMAIN)
+        if hasattr(entry, "runtime_data")
+        and isinstance(entry.runtime_data, LIFXUpdateCoordinator)
+        and entry.runtime_data.is_matrix
+        and entry.runtime_data.device.product in LIFX_CEILING_PRODUCT_IDS
     ]
-
-    _LOGGER.debug(
-        "Found %d LIFX Ceiling coordinators: %s",
-        len(coordinators),
-        [coordinator.device.mac_addr for coordinator in coordinators],
-    )
-
     return coordinators
 
 
@@ -133,3 +116,54 @@ def hsbk_for_turn_on(
         brightness = 65535
 
     return hue, saturation, brightness, kelvin
+
+
+async def async_execute_lifx(
+    methods: Callable | list[Callable],
+    attempts: int = DEFAULT_ATTEMPTS,
+    overall_timeout: int = OVERALL_TIMEOUT,
+) -> list[Message]:
+    """Execute LIFX methods with retries."""
+    loop = asyncio.get_running_loop()
+
+    if not isinstance(methods, list):
+        methods = [methods]
+
+    futures: list[asyncio.Future] = [
+        loop.create_future() for method in methods if callable(method)
+    ]
+
+    def _callback(
+        bulb: Light, message: Message | None, future: asyncio.Future[Message]
+    ) -> None:
+        """Handle the response from LIFX methods."""
+        if message and not future.done():
+            future.set_result(message)
+
+    timeout_per_attempt = overall_timeout / attempts
+
+    for _ in range(attempts):
+        for idx, method in enumerate(methods):
+            if not callable(method):
+                _LOGGER.warning("Method at index %d is not callable: %s", idx, method)
+                continue
+            future = futures[idx]
+            if not future.done():
+                method(callb=partial(_callback, future=future))
+
+        _, pending = await asyncio.wait(futures, timeout=timeout_per_attempt)
+        if not pending:
+            break
+
+    results: list[Message] = []
+    failed: list[str] = []
+    for idx, future in enumerate(futures):
+        if not future.done() or not (result := future.result()):
+            method = methods[idx]
+            failed.append(str(getattr(method, "__name__", method)))
+        else:
+            results.append(result)
+
+    if failed:
+        msg = f"{len(failed)} requests timed out after {overall_timeout} seconds."
+        raise TimeoutError(msg)

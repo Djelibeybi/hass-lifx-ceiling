@@ -6,7 +6,6 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from awesomeversion import AwesomeVersion
-from homeassistant.components.lifx.util import async_execute_lifx
 from homeassistant.components.light import ATTR_TRANSITION
 from homeassistant.const import ATTR_DEVICE_ID, MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import callback
@@ -26,7 +25,7 @@ from .const import (
     ATTR_UPLIGHT_SATURATION,
     DOMAIN,
 )
-from .util import find_lifx_coordinators
+from .util import async_execute_lifx, find_lifx_coordinators
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -90,8 +89,6 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
 
     async def async_update(self, update_time: datetime | None = None) -> None:
         """Fetch new LIFX Ceiling coordinators from the core integration."""
-        _LOGGER.debug("Looking for new LIFX Ceiling devices")
-
         lifx_coordinators = [
             coordinator
             for coordinator in find_lifx_coordinators(self.hass)
@@ -180,19 +177,14 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
                         partial(device.set_power, value="off", duration=transition)
                     )
                 else:
-                    colors = [downlight_color] * 63 + [uplight_color]
-                    device.set64(
-                        tile_index=0,
-                        x=0,
-                        y=0,
-                        width=8,
-                        duration=transition,
+                    colors = [downlight_color] * (device.total_zones - 1) + [
+                        uplight_color
+                    ]
+                    await device.async_set64(
                         colors=colors,
+                        duration=transition,
+                        power_on=bool(device.power_level == 0),
                     )
-                    if device.power_level == 0:
-                        await async_execute_lifx(
-                            partial(device.set_power, value="on", duration=transition)
-                        )
 
     async def turn_uplight_on(
         self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0
