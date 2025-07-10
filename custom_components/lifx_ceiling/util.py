@@ -129,8 +129,8 @@ async def async_execute_lifx(
     if not isinstance(methods, list):
         methods = [methods]
 
-    futures: list[asyncio.Future] = [
-        loop.create_future() for method in methods if callable(method)
+    methods_with_futures: list[tuple[Callable, asyncio.Future]] = [
+        (method, loop.create_future()) for method in methods if callable(method)
     ]
 
     def _callback(
@@ -143,23 +143,19 @@ async def async_execute_lifx(
     timeout_per_attempt = overall_timeout / attempts
 
     for _ in range(attempts):
-        for idx, method in enumerate(methods):
-            if not callable(method):
-                _LOGGER.warning("Method at index %d is not callable: %s", idx, method)
-                continue
-            future = futures[idx]
+        for method, future in methods_with_futures:
             if not future.done():
                 method(callb=partial(_callback, future=future))
 
+        futures = [future for _, future in methods_with_futures]
         _, pending = await asyncio.wait(futures, timeout=timeout_per_attempt)
         if not pending:
             break
 
     results: list[Message] = []
     failed: list[str] = []
-    for idx, future in enumerate(futures):
+    for method, future in methods_with_futures:
         if not future.done() or not (result := future.result()):
-            method = methods[idx]
             failed.append(str(getattr(method, "__name__", method)))
         else:
             results.append(result)
