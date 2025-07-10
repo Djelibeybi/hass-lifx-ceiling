@@ -1,7 +1,7 @@
-aiolifx>=1.1.2
+aiolifx>=1.2.1
 aiolifx-effects>=0.3.2
 aiolifx-themes>=0.6.4
 colorlog>=6.8.2
-homeassistant>=2025.1.0
+homeassistant>=2025.8.0
 pip>=21.3.1
 ruff>=0.6.1
