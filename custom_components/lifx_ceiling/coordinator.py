@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING
 
+from awesomeversion import AwesomeVersion
 from homeassistant.components.light import ATTR_TRANSITION
 from homeassistant.const import ATTR_DEVICE_ID, MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import callback
