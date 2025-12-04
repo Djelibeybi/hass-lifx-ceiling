@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
 from typing import TYPE_CHECKING
 
 from awesomeversion import AwesomeVersion
@@ -25,7 +24,7 @@ from .const import (
     ATTR_UPLIGHT_SATURATION,
     DOMAIN,
 )
-from .util import async_execute_lifx, find_lifx_coordinators
+from .util import find_lifx_coordinators
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -61,6 +60,14 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         self._ceiling_coordinators: dict[str, LIFXUpdateCoordinator] = {}
         self._ceilings: set[LIFXCeiling] = set()
         self._hass_version = AwesomeVersion(f"{MAJOR_VERSION}.{MINOR_VERSION}")
+
+        # Track virtual on/off state and desired colors for uplight/downlight
+        # Key is mac_addr, value is the state/color
+        self._uplight_is_on: dict[str, bool] = {}
+        self._downlight_is_on: dict[str, bool] = {}
+        # Store desired colors (HSBK tuples) for when light is turned on
+        self._uplight_color: dict[str, tuple[int, int, int, int]] = {}
+        self._downlight_color: dict[str, tuple[int, int, int, int]] = {}
 
     @property
     def devices(self) -> list[LIFXCeiling]:
@@ -102,6 +109,15 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
 
             self._ceilings.add(ceiling)
 
+            # Initialize virtual state from hardware state on discovery
+            mac = ceiling.mac_addr
+            if mac not in self._uplight_is_on:
+                self._uplight_is_on[mac] = ceiling.uplight_is_on
+                self._uplight_color[mac] = ceiling.uplight_color
+            if mac not in self._downlight_is_on:
+                self._downlight_is_on[mac] = ceiling.downlight_is_on
+                self._downlight_color[mac] = ceiling.downlight_color
+
             if self._discovery_callback and callable(self._discovery_callback):
                 self._discovery_callback(ceiling)
 
@@ -111,17 +127,17 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         if not isinstance(device_ids, list):
             device_ids = [device_ids]
 
-        downlight_hue = (
+        downlight_hue = int(
             call.data[ATTR_DOWNLIGHT_HUE] / 360 * 65535
             if ATTR_DOWNLIGHT_HUE in call.data
             else 0
         )
-        downlight_saturation = (
+        downlight_saturation = int(
             call.data[ATTR_DOWNLIGHT_SATURATION] / 100 * 65535
             if ATTR_DOWNLIGHT_SATURATION in call.data
             else 0
         )
-        downlight_brightness = (
+        downlight_brightness = int(
             call.data[ATTR_DOWNLIGHT_BRIGHTNESS] / 100 * 65535
             if ATTR_DOWNLIGHT_BRIGHTNESS in call.data
             else 65535
@@ -134,17 +150,17 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
             downlight_kelvin,
         )
 
-        uplight_hue = (
+        uplight_hue = int(
             call.data[ATTR_UPLIGHT_HUE] / 360 * 65535
             if ATTR_UPLIGHT_HUE in call.data
             else 0
         )
-        uplight_saturation = (
+        uplight_saturation = int(
             call.data[ATTR_UPLIGHT_SATURATION] / 100 * 65535
             if ATTR_UPLIGHT_SATURATION in call.data
             else 0
         )
-        uplight_brightness = (
+        uplight_brightness = int(
             call.data[ATTR_UPLIGHT_BRIGHTNESS] / 100 * 65535
             if ATTR_UPLIGHT_BRIGHTNESS in call.data
             else 65535
@@ -172,40 +188,103 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
                     device = self._ceiling_coordinators.get(identifier[1]).device
 
             if device is not None and isinstance(device, LIFXCeiling):
-                if downlight_brightness == 0 and uplight_brightness == 0:
-                    await async_execute_lifx(
-                        partial(device.set_power, value="off", duration=transition)
-                    )
+                mac = device.mac_addr
+
+                # Always store the desired colors
+                self._uplight_color[mac] = uplight_color
+                self._downlight_color[mac] = downlight_color
+
+                # Check virtual on/off state for each light
+                uplight_is_on = self._uplight_is_on.get(mac, device.uplight_is_on)
+                downlight_is_on = self._downlight_is_on.get(
+                    mac, device.downlight_is_on
+                )
+
+                # If both are virtually off, don't change hardware
+                if not uplight_is_on and not downlight_is_on:
+                    continue
+
+                # Build colors based on virtual state - use stored color for
+                # lights that are on, zero brightness for lights that are off
+                if downlight_is_on:
+                    effective_downlight = downlight_color
                 else:
-                    colors = [downlight_color] * (device.total_zones - 1) + [
-                        uplight_color
-                    ]
-                    await device.async_set64(
-                        colors=colors,
-                        duration=transition,
-                        power_on=bool(device.power_level == 0),
-                    )
+                    h, s, _, k = downlight_color
+                    effective_downlight = (h, s, 0, k)
+
+                if uplight_is_on:
+                    effective_uplight = uplight_color
+                else:
+                    h, s, _, k = uplight_color
+                    effective_uplight = (h, s, 0, k)
+
+                colors = [effective_downlight] * (device.total_zones - 1) + [
+                    effective_uplight
+                ]
+                await device.async_set64(
+                    colors=colors,
+                    duration=transition,
+                    power_on=False,
+                )
 
     async def turn_uplight_on(
         self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0
     ) -> None:
         """Turn on the uplight."""
+        mac = device.mac_addr
+        self._uplight_is_on[mac] = True
+        self._uplight_color[mac] = color
         await device.turn_uplight_on(color, duration)
-        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+        await self._ceiling_coordinators[mac].async_request_refresh()
 
     async def turn_uplight_off(self, device: LIFXCeiling, duration: int = 0) -> None:
         """Turn off the uplight."""
+        mac = device.mac_addr
+        self._uplight_is_on[mac] = False
         await device.turn_uplight_off(duration)
-        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+        await self._ceiling_coordinators[mac].async_request_refresh()
 
     async def turn_downlight_on(
         self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0
     ) -> None:
         """Turn on the downlight."""
+        mac = device.mac_addr
+        self._downlight_is_on[mac] = True
+        self._downlight_color[mac] = color
         await device.turn_downlight_on(color, duration)
-        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+        await self._ceiling_coordinators[mac].async_request_refresh()
 
     async def turn_downlight_off(self, device: LIFXCeiling, duration: int = 0) -> None:
         """Turn off the downlight."""
+        mac = device.mac_addr
+        self._downlight_is_on[mac] = False
         await device.turn_downlight_off(duration)
-        await self._ceiling_coordinators[device.mac_addr].async_request_refresh()
+        await self._ceiling_coordinators[mac].async_request_refresh()
+
+    def set_uplight_color(
+        self, device: LIFXCeiling, color: tuple[int, int, int, int]
+    ) -> None:
+        """Store desired uplight color without applying to hardware."""
+        self._uplight_color[device.mac_addr] = color
+
+    def set_downlight_color(
+        self, device: LIFXCeiling, color: tuple[int, int, int, int]
+    ) -> None:
+        """Store desired downlight color without applying to hardware."""
+        self._downlight_color[device.mac_addr] = color
+
+    def get_uplight_is_on(self, device: LIFXCeiling) -> bool:
+        """Get virtual on/off state for uplight."""
+        return self._uplight_is_on.get(device.mac_addr, device.uplight_is_on)
+
+    def get_downlight_is_on(self, device: LIFXCeiling) -> bool:
+        """Get virtual on/off state for downlight."""
+        return self._downlight_is_on.get(device.mac_addr, device.downlight_is_on)
+
+    def get_uplight_color(self, device: LIFXCeiling) -> tuple[int, int, int, int]:
+        """Get stored uplight color."""
+        return self._uplight_color.get(device.mac_addr, device.uplight_color)
+
+    def get_downlight_color(self, device: LIFXCeiling) -> tuple[int, int, int, int]:
+        """Get stored downlight color."""
+        return self._downlight_color.get(device.mac_addr, device.downlight_color)

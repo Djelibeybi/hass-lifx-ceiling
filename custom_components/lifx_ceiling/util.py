@@ -47,6 +47,10 @@ def find_lifx_coordinators(hass: HomeAssistant) -> list[LIFXUpdateCoordinator]:
         and isinstance(entry.runtime_data, LIFXUpdateCoordinator)
         and entry.runtime_data.is_matrix
         and entry.runtime_data.device.product in LIFX_CEILING_PRODUCT_IDS
+        and hasattr(entry.runtime_data.device, "chain")
+        and entry.runtime_data.device.chain
+        and len(entry.runtime_data.device.chain) > 0
+        and entry.runtime_data.device.chain[0]
     ]
     return coordinators
 
