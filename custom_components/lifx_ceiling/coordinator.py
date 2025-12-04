@@ -127,17 +127,17 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         if not isinstance(device_ids, list):
             device_ids = [device_ids]
 
-        downlight_hue = (
+        downlight_hue = int(
             call.data[ATTR_DOWNLIGHT_HUE] / 360 * 65535
             if ATTR_DOWNLIGHT_HUE in call.data
             else 0
         )
-        downlight_saturation = (
+        downlight_saturation = int(
             call.data[ATTR_DOWNLIGHT_SATURATION] / 100 * 65535
             if ATTR_DOWNLIGHT_SATURATION in call.data
             else 0
         )
-        downlight_brightness = (
+        downlight_brightness = int(
             call.data[ATTR_DOWNLIGHT_BRIGHTNESS] / 100 * 65535
             if ATTR_DOWNLIGHT_BRIGHTNESS in call.data
             else 65535
@@ -150,17 +150,17 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
             downlight_kelvin,
         )
 
-        uplight_hue = (
+        uplight_hue = int(
             call.data[ATTR_UPLIGHT_HUE] / 360 * 65535
             if ATTR_UPLIGHT_HUE in call.data
             else 0
         )
-        uplight_saturation = (
+        uplight_saturation = int(
             call.data[ATTR_UPLIGHT_SATURATION] / 100 * 65535
             if ATTR_UPLIGHT_SATURATION in call.data
             else 0
         )
-        uplight_brightness = (
+        uplight_brightness = int(
             call.data[ATTR_UPLIGHT_BRIGHTNESS] / 100 * 65535
             if ATTR_UPLIGHT_BRIGHTNESS in call.data
             else 65535
