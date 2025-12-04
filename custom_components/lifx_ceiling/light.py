@@ -74,8 +74,13 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
     @callback
     def _update_callback(self) -> None:
         """Handle coordinator updates."""
-        self._attr_is_on = self._device.downlight_is_on
-        self._attr_brightness = self._device.downlight_brightness
+        self._attr_is_on = self.coordinator.get_downlight_is_on(self._device)
+        # Use stored color for brightness when off, hardware state when on
+        if self._attr_is_on:
+            self._attr_brightness = self._device.downlight_brightness
+        else:
+            _, _, brightness, _ = self.coordinator.get_downlight_color(self._device)
+            self._attr_brightness = brightness >> 8
         self._attr_hs_color = self._device.downlight_hs_color
         self._attr_color_temp_kelvin = self._device.downlight_kelvin
         _, sat = self._device.downlight_hs_color
@@ -93,7 +98,44 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the downlight."""
         duration = int(kwargs.get(ATTR_TRANSITION, 0))
-        color = hsbk_for_turn_on(self._device.downlight_color, **kwargs)
+        # Use stored color as base instead of hardware state
+        stored_color = self.coordinator.get_downlight_color(self._device)
+
+        # Check if light is currently off (virtual state)
+        is_on = self.coordinator.get_downlight_is_on(self._device)
+
+        if not is_on:
+            # Light is off - check if this is just a brightness/color adjustment
+            has_turn_on_intent = not kwargs or any(
+                k not in (
+                    ATTR_TRANSITION, "brightness", "brightness_pct",
+                    "hs_color", "color_temp_kelvin", "color_name"
+                )
+                for k in kwargs
+            )
+
+            if not has_turn_on_intent and kwargs:
+                # Just storing brightness/color, not turning on
+                color = hsbk_for_turn_on(stored_color, **kwargs)
+                self.coordinator.set_downlight_color(self._device, color)
+                self.async_write_ha_state()
+                return
+
+            # Explicit turn-on: use stored color directly, applying any kwargs
+            # but don't let hsbk_for_turn_on override 0 brightness to 100%
+            if kwargs:
+                color = hsbk_for_turn_on(stored_color, **kwargs)
+            else:
+                # No kwargs - use stored color directly
+                color = stored_color
+                # If stored brightness is 0, use a sensible default
+                if color[2] == 0:
+                    color = (color[0], color[1], 65535, color[3])
+
+            self.coordinator.set_downlight_color(self._device, color)
+        else:
+            color = hsbk_for_turn_on(stored_color, **kwargs)
+
         await self.coordinator.turn_downlight_on(self._device, color, duration)
         self.async_write_ha_state()
 
@@ -120,8 +162,13 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
     @callback
     def _update_callback(self) -> None:
         """Handle device updates."""
-        self._attr_is_on = self._device.uplight_is_on
-        self._attr_brightness = self._device.uplight_brightness
+        self._attr_is_on = self.coordinator.get_uplight_is_on(self._device)
+        # Use stored color for brightness when off, hardware state when on
+        if self._attr_is_on:
+            self._attr_brightness = self._device.uplight_brightness
+        else:
+            _, _, brightness, _ = self.coordinator.get_uplight_color(self._device)
+            self._attr_brightness = brightness >> 8
         self._attr_hs_color = self._device.uplight_hs_color
         self._attr_color_temp_kelvin = self._device.uplight_kelvin
         _, sat = self._device.uplight_hs_color
@@ -140,6 +187,43 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the uplight."""
         duration = int(kwargs[ATTR_TRANSITION]) if ATTR_TRANSITION in kwargs else 0
-        color = hsbk_for_turn_on(self._device.uplight_color, **kwargs)
+        # Use stored color as base instead of hardware state
+        stored_color = self.coordinator.get_uplight_color(self._device)
+
+        # Check if light is currently off (virtual state)
+        is_on = self.coordinator.get_uplight_is_on(self._device)
+
+        if not is_on:
+            # Light is off - check if this is just a brightness/color adjustment
+            has_turn_on_intent = not kwargs or any(
+                k not in (
+                    ATTR_TRANSITION, "brightness", "brightness_pct",
+                    "hs_color", "color_temp_kelvin", "color_name"
+                )
+                for k in kwargs
+            )
+
+            if not has_turn_on_intent and kwargs:
+                # Just storing brightness/color, not turning on
+                color = hsbk_for_turn_on(stored_color, **kwargs)
+                self.coordinator.set_uplight_color(self._device, color)
+                self.async_write_ha_state()
+                return
+
+            # Explicit turn-on: use stored color directly, applying any kwargs
+            # but don't let hsbk_for_turn_on override 0 brightness to 100%
+            if kwargs:
+                color = hsbk_for_turn_on(stored_color, **kwargs)
+            else:
+                # No kwargs - use stored color directly
+                color = stored_color
+                # If stored brightness is 0, use a sensible default
+                if color[2] == 0:
+                    color = (color[0], color[1], 65535, color[3])
+
+            self.coordinator.set_uplight_color(self._device, color)
+        else:
+            color = hsbk_for_turn_on(stored_color, **kwargs)
+
         await self.coordinator.turn_uplight_on(self._device, color, duration)
         self.async_write_ha_state()
