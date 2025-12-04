@@ -106,15 +106,16 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
 
         if not is_on:
             # Light is off - check if this is just a brightness/color adjustment
-            has_turn_on_intent = not kwargs or any(
-                k not in (
-                    ATTR_TRANSITION, "brightness", "brightness_pct",
-                    "hs_color", "color_temp_kelvin", "color_name"
-                )
-                for k in kwargs
+            # (no actual turn-on intent) vs an explicit turn-on request
+            color_brightness_keys = (
+                ATTR_TRANSITION, "brightness", "brightness_pct",
+                "hs_color", "color_temp_kelvin", "color_name"
+            )
+            is_adjustment_only = kwargs and all(
+                k in color_brightness_keys for k in kwargs
             )
 
-            if not has_turn_on_intent and kwargs:
+            if is_adjustment_only:
                 # Just storing brightness/color, not turning on
                 color = hsbk_for_turn_on(stored_color, **kwargs)
                 self.coordinator.set_downlight_color(self._device, color)
@@ -195,15 +196,16 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
 
         if not is_on:
             # Light is off - check if this is just a brightness/color adjustment
-            has_turn_on_intent = not kwargs or any(
-                k not in (
-                    ATTR_TRANSITION, "brightness", "brightness_pct",
-                    "hs_color", "color_temp_kelvin", "color_name"
-                )
-                for k in kwargs
+            # (no actual turn-on intent) vs an explicit turn-on request
+            color_brightness_keys = (
+                ATTR_TRANSITION, "brightness", "brightness_pct",
+                "hs_color", "color_temp_kelvin", "color_name"
+            )
+            is_adjustment_only = kwargs and all(
+                k in color_brightness_keys for k in kwargs
             )
 
-            if not has_turn_on_intent and kwargs:
+            if is_adjustment_only:
                 # Just storing brightness/color, not turning on
                 color = hsbk_for_turn_on(stored_color, **kwargs)
                 self.coordinator.set_uplight_color(self._device, color)
