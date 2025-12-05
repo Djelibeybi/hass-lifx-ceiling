@@ -154,3 +154,6 @@ cython_debug/
 
 # Home Assistant config
 config/
+
+# AI things
+.claude/settings.local.json
