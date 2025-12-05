@@ -106,13 +106,19 @@ class LIFXCeilingDownlight(LIFXCeilingEntity, LightEntity):
 
         if not is_on:
             # Light is off - check if this is just a brightness/color adjustment
-            # (no actual turn-on intent) vs an explicit turn-on request
-            color_brightness_keys = (
-                ATTR_TRANSITION, "brightness", "brightness_pct",
-                "hs_color", "color_temp_kelvin", "color_name"
-            )
-            is_adjustment_only = kwargs and all(
-                k in color_brightness_keys for k in kwargs
+            # (no actual turn-on intent) vs an explicit turn-on request.
+            # is_adjustment_only is True when kwargs has values AND all keys are
+            # color/brightness related (no unknown keys that might indicate intent)
+            color_brightness_keys = {
+                ATTR_TRANSITION,
+                "brightness",
+                "brightness_pct",
+                "hs_color",
+                "color_temp_kelvin",
+                "color_name",
+            }
+            is_adjustment_only = bool(
+                kwargs and not any(k not in color_brightness_keys for k in kwargs)
             )
 
             if is_adjustment_only:
@@ -196,13 +202,19 @@ class LIFXCeilingUplight(LIFXCeilingEntity, LightEntity):
 
         if not is_on:
             # Light is off - check if this is just a brightness/color adjustment
-            # (no actual turn-on intent) vs an explicit turn-on request
-            color_brightness_keys = (
-                ATTR_TRANSITION, "brightness", "brightness_pct",
-                "hs_color", "color_temp_kelvin", "color_name"
-            )
-            is_adjustment_only = kwargs and all(
-                k in color_brightness_keys for k in kwargs
+            # (no actual turn-on intent) vs an explicit turn-on request.
+            # is_adjustment_only is True when kwargs has values AND all keys are
+            # color/brightness related (no unknown keys that might indicate intent)
+            color_brightness_keys = {
+                ATTR_TRANSITION,
+                "brightness",
+                "brightness_pct",
+                "hs_color",
+                "color_temp_kelvin",
+                "color_name",
+            }
+            is_adjustment_only = bool(
+                kwargs and not any(k not in color_brightness_keys for k in kwargs)
             )
 
             if is_adjustment_only:

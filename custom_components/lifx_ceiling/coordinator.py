@@ -196,9 +196,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
 
                 # Check virtual on/off state for each light
                 uplight_is_on = self._uplight_is_on.get(mac, device.uplight_is_on)
-                downlight_is_on = self._downlight_is_on.get(
-                    mac, device.downlight_is_on
-                )
+                downlight_is_on = self._downlight_is_on.get(mac, device.downlight_is_on)
 
                 # If both are virtually off, don't change hardware
                 if not uplight_is_on and not downlight_is_on:
@@ -275,10 +273,16 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
 
     def get_uplight_is_on(self, device: LIFXCeiling) -> bool:
         """Get virtual on/off state for uplight."""
+        # If main light is off, uplight is off regardless of virtual state
+        if device.power_level == 0:
+            return False
         return self._uplight_is_on.get(device.mac_addr, device.uplight_is_on)
 
     def get_downlight_is_on(self, device: LIFXCeiling) -> bool:
         """Get virtual on/off state for downlight."""
+        # If main light is off, downlight is off regardless of virtual state
+        if device.power_level == 0:
+            return False
         return self._downlight_is_on.get(device.mac_addr, device.downlight_is_on)
 
     def get_uplight_color(self, device: LIFXCeiling) -> tuple[int, int, int, int]:
