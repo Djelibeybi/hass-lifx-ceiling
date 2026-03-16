@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
@@ -15,7 +16,11 @@ from .const import (
     SERVICE_LIFX_CEILING_SET_STATE,
 )
 from .coordinator import LIFXCeilingConfigEntry, LIFXCeilingUpdateCoordinator
-from .util import async_get_legacy_entries, has_single_config_entry
+from .util import (
+    async_get_legacy_entries,
+    find_lifx_coordinators,
+    has_single_config_entry,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant, ServiceCall
@@ -60,6 +65,14 @@ async def async_setup_entry(
     hass: HomeAssistant, config_entry: LIFXCeilingConfigEntry
 ) -> bool:
     """Set up LIFX Ceiling."""
+    # Check if LIFX integration has loaded ceiling devices with ready state
+    coordinators = find_lifx_coordinators(hass)
+    if not coordinators:
+        msg = "LIFX Ceiling devices not yet available"
+        raise ConfigEntryNotReady(msg)
+
+    _LOGGER.debug("Found %d LIFX Ceiling device(s)", len(coordinators))
+
     coordinator = LIFXCeilingUpdateCoordinator(hass, config_entry)
     await coordinator.async_update()
 
