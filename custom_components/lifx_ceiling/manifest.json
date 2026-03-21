@@ -21,7 +21,7 @@
   "requirements": [
     "aiolifx==1.2.1",
     "aiolifx-effects==0.3.2",
-    "aiolifx-themes==1.0.2"
+    "aiolifx-themes==1.0.3"
   ],
   "single_config_entry": true,
   "version": "2026.3.0"

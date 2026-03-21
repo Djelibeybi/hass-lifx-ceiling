@@ -1,6 +1,7 @@
 # LIFX Ceiling Development Guide
 
 ## Table of Contents
+
 - [Quick Start](#quick-start)
 - [Development Environment](#development-environment)
 - [Architecture Deep Dive](#architecture-deep-dive)
@@ -14,8 +15,9 @@
 ## Quick Start
 
 ### Prerequisites
-- Python 3.12 or higher
-- Home Assistant 2025.8.0 or higher
+
+- Python 3.14.2 or higher
+- Home Assistant 2026.3.0 or higher
 - At least one LIFX Ceiling device configured in HA core LIFX integration
 
 ### Setup Development Environment
@@ -25,21 +27,27 @@
 git clone https://github.com/Djelibeybi/hass-lifx-ceiling.git
 cd hass-lifx-ceiling
 
-# Install dependencies (using uv - recommended)
-uv pip install -r requirements.txt
+# Install development dependencies (using uv - recommended)
+uv sync --extra dev
 
 # Or with pip
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ### Running Tests
 
 ```bash
+# Install development dependencies
+uv sync --extra dev
+
 # Format code
 ruff format .
 
 # Lint code
 ruff check .
+
+# Run tests
+pytest
 
 # Run Home Assistant with test config
 hass -c config
@@ -69,9 +77,9 @@ hass-lifx-ceiling/
 ├── config/                          # Test HA config
 ├── docs/                            # Documentation
 ├── .github/workflows/               # CI/CD
-├── requirements.txt                 # Dependencies
-├── ruff.toml                        # Linting config
-└── CLAUDE.md                        # AI assistant guide
+├── pyproject.toml                   # Python dependencies and tool config
+└── CLAUDE.md                        # Claude Code AI assistant guide
+└── AGENTS.md                        # Codex and other AI assistant guide
 ```
 
 ### Tools
@@ -94,17 +102,20 @@ ceiling = LIFXCeiling.cast(coordinator.device)
 ```
 
 This works by:
+
 1. Taking an existing `aiolifx` `Light` object from core integration
 2. Replacing its `__class__` attribute to `LIFXCeiling`
 3. Preserving the existing connection and state
 
 **Why this pattern?**
+
 - Avoids recreating UDP connections
 - Reuses core integration's connection management
 - Minimal memory overhead
 - Transparent to `aiolifx` library
 
 **Implementation:**
+
 ```python
 @classmethod
 def cast(cls, device: Light) -> LIFXCeiling:
@@ -120,18 +131,21 @@ def cast(cls, device: Light) -> LIFXCeiling:
 LIFX Ceiling devices use multizone API but with specific layout:
 
 **64-Zone Devices (Product IDs 176, 177):**
+
 ```
 Zones 0-62: Downlight (63 zones)
 Zone 63:    Uplight (1 zone)
 ```
 
 **128-Zone Devices (Product IDs 201, 202):**
+
 ```
 Zones 0-126: Downlight (127 zones)
 Zone 127:    Uplight (1 zone)
 ```
 
 **Framebuffer Layout:**
+
 - Width: 8 or 16 zones
 - Height (64-zone): 8 rows with 8 zones per row
 - Height (128-zone): 8 rows with 16 zones per row
@@ -158,6 +172,7 @@ device.set64(..., y=4, colors=colors[64:128]) # Second 64 zones
 ```
 
 **Copy framebuffer to activate:**
+
 ```python
 device.copy_frame_buffer(
     tile_index=0,
@@ -176,6 +191,7 @@ device.copy_frame_buffer(
 Uses Home Assistant's `DataUpdateCoordinator` but with unique behavior:
 
 **Traditional coordinator:**
+
 ```python
 coordinator = DataUpdateCoordinator(
     hass,
@@ -187,6 +203,7 @@ coordinator = DataUpdateCoordinator(
 ```
 
 **LIFX Ceiling coordinator:**
+
 ```python
 coordinator = LIFXCeilingUpdateCoordinator(
     hass,
@@ -203,6 +220,7 @@ coordinator.stop_discovery = async_track_time_interval(
 ```
 
 **Why this pattern?**
+
 - State comes from core LIFX coordinator (no polling needed)
 - `async_update()` only discovers new devices
 - Entities listen to core coordinator for state changes
@@ -224,6 +242,7 @@ def _update_callback(self) -> None:
 ```
 
 **Flow:**
+
 1. Core LIFX device state changes (via `aiolifx`)
 2. Core coordinator updates its state
 3. Core coordinator calls all listeners
@@ -233,18 +252,21 @@ def _update_callback(self) -> None:
 ### Color Scale Conversions
 
 **Home Assistant scales:**
+
 - Hue: 0-360 degrees
 - Saturation: 0-255
 - Brightness: 0-255
 - Kelvin: 1500-9000
 
 **LIFX scales:**
+
 - Hue: 0-65535 (uint16)
 - Saturation: 0-65535 (uint16)
 - Brightness: 0-65535 (uint16)
 - Kelvin: 1500-9000
 
 **Conversion formulas:**
+
 ```python
 # HA → LIFX
 lifx_hue = int(ha_hue / 360 * 65535)
@@ -264,6 +286,7 @@ ha_bri = lifx_bri >> 8  # High byte only
 ### Adding a New Property to LIFXCeiling
 
 1. **Add property to api.py:**
+
 ```python
 @property
 def my_new_property(self) -> str:
@@ -272,6 +295,7 @@ def my_new_property(self) -> str:
 ```
 
 2. **Use in entity (light.py):**
+
 ```python
 @callback
 def _update_callback(self) -> None:
@@ -280,6 +304,7 @@ def _update_callback(self) -> None:
 ```
 
 3. **Test:**
+
 ```bash
 ruff check .
 ruff format .
@@ -289,6 +314,7 @@ hass -c config
 ### Adding a New Service
 
 1. **Define service in services.yaml:**
+
 ```yaml
 my_service:
   name: My Service
@@ -300,7 +326,8 @@ my_service:
       required: true
 ```
 
-2. **Add service handler in __init__.py:**
+2. **Add service handler in **init**.py:**
+
 ```python
 async def async_setup_entry(...):
     # ... existing code
@@ -318,6 +345,7 @@ async def async_setup_entry(...):
 ```
 
 3. **Add constants to const.py:**
+
 ```python
 ATTR_MY_PARAM = "my_param"
 SERVICE_MY_SERVICE = "my_service"
@@ -328,6 +356,7 @@ SERVICE_MY_SERVICE = "my_service"
 Zone control has specific power management requirements:
 
 **Turning one zone on when device is off:**
+
 ```python
 async def turn_uplight_on(self, color, duration):
     colors = self.chain[0][self.downlight_zones]  # Get current
@@ -341,6 +370,7 @@ async def turn_uplight_on(self, color, duration):
 ```
 
 **Turning one zone off when both are on:**
+
 ```python
 async def turn_uplight_off(self, duration):
     if self.downlight_is_on:
@@ -399,6 +429,7 @@ else:
 ### Manual Testing with Home Assistant
 
 1. **Setup test environment:**
+
 ```bash
 # Ensure HA not running
 hass -c config
@@ -446,6 +477,7 @@ async def test_zone_mapping_128():
 ### Integration Testing
 
 Test with actual hardware:
+
 1. Connect to LIFX Ceiling device
 2. Configure via HA core LIFX integration
 3. Install this integration
@@ -459,6 +491,7 @@ Test with actual hardware:
 ### Enable Debug Logging
 
 Add to `configuration.yaml`:
+
 ```yaml
 logger:
   default: info
@@ -471,23 +504,27 @@ logger:
 ### Common Issues
 
 **Entities not appearing:**
+
 - Check core LIFX integration is loaded
 - Verify device is LIFX Ceiling (product ID 176, 177, 201, or 202)
 - Check logs for discovery errors
 - Ensure `is_matrix` is True on core device
 
 **State not updating:**
+
 - Verify entities registered core coordinator listener
 - Check core LIFX coordinator is updating
 - Examine callback registration in entity setup
 
 **Control commands timing out:**
+
 - Check network connectivity to device
 - Verify UDP port 56700 is accessible
 - Increase `OVERALL_TIMEOUT` in const.py (temporarily)
 - Check for firewall issues
 
 **Colors not matching:**
+
 - Verify conversion formulas (see Color Scale Conversions)
 - Check saturation > 0 for color mode vs kelvin mode
 - Examine HSBK tuple values in logs
@@ -495,6 +532,7 @@ logger:
 ### Debugging Tools
 
 **Check coordinator state:**
+
 ```python
 # In Developer Tools → Template
 {{ states.light.my_ceiling_downlight }}
@@ -503,6 +541,7 @@ logger:
 ```
 
 **Inspect device registry:**
+
 ```python
 # In Developer Tools → Template
 {% set device_id = 'abc123' %}
@@ -511,6 +550,7 @@ logger:
 ```
 
 **Call service manually:**
+
 ```yaml
 # Developer Tools → Services
 service: lifx_ceiling.set_state
@@ -529,16 +569,19 @@ data:
 ### Before Submitting PR
 
 1. **Format code:**
+
 ```bash
 ruff format .
 ```
 
 2. **Fix lint issues:**
+
 ```bash
 ruff check . --fix
 ```
 
 3. **Test with Home Assistant:**
+
 ```bash
 hass -c config
 # Verify all functionality works
@@ -551,6 +594,7 @@ hass -c config
    - `README.md` for user-facing features
 
 5. **Commit with conventional commits and DCO sign-off:**
+
 ```bash
 git commit -s -m "feat: add new zone control method"
 git commit -s -m "fix: correct 128-zone framebuffer split"
@@ -568,6 +612,7 @@ git commit -s -m "docs: update API reference"
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation only
@@ -577,6 +622,7 @@ git commit -s -m "docs: update API reference"
 - `chore`: Maintenance
 
 **Scopes:**
+
 - `api`: LIFXCeiling class
 - `coordinator`: Coordinator changes
 - `entity`: Entity changes
@@ -603,7 +649,8 @@ git commit -s -m "docs: update API reference"
 
 The integration migrated from per-device to single config entry in v2025.5.0:
 
-**Migration logic (in __init__.py):**
+**Migration logic (in **init**.py):**
+
 ```python
 async def async_setup(hass, config):
     legacy_entries = async_get_legacy_entries(hass)
@@ -625,6 +672,7 @@ async def async_setup(hass, config):
 ```
 
 **Key points:**
+
 - Runs once on first load after upgrade
 - First legacy entry becomes the single entry
 - Data/options cleared (no longer needed)
@@ -634,6 +682,7 @@ async def async_setup(hass, config):
 ### Error Handling
 
 **LIFX command retries:**
+
 ```python
 async def async_execute_lifx(methods, attempts=3, overall_timeout=5):
     timeout_per_attempt = overall_timeout / attempts
@@ -653,6 +702,7 @@ async def async_execute_lifx(methods, attempts=3, overall_timeout=5):
 ```
 
 **Benefits:**
+
 - Handles UDP packet loss
 - Configurable retry count
 - Parallel execution of multiple commands
@@ -661,6 +711,7 @@ async def async_execute_lifx(methods, attempts=3, overall_timeout=5):
 ### Performance Optimization
 
 **Parallel command execution:**
+
 ```python
 # Good: Parallel execution
 await async_execute_lifx([
@@ -674,6 +725,7 @@ await async_execute_lifx(partial(device.set64, colors=batch2))
 ```
 
 **Minimize coordinator refreshes:**
+
 ```python
 # Good: Refresh after control command
 async def turn_uplight_on(self, device, color, duration):
@@ -688,14 +740,17 @@ async def turn_uplight_on(self, device, color, duration):
 ## Resources
 
 ### Documentation
+
 - [Home Assistant Developer Docs](https://developers.home-assistant.io/)
 - [aiolifx Documentation](https://github.com/aiolifx/aiolifx)
 - [LIFX LAN Protocol](https://lan.developer.lifx.com/)
 
 ### Related Projects
+
 - [Home Assistant Core LIFX Integration](https://github.com/home-assistant/core/tree/dev/homeassistant/components/lifx)
 - [aiolifx Library](https://github.com/aiolifx/aiolifx)
 
 ### Support
+
 - [GitHub Issues](https://github.com/Djelibeybi/hass-lifx-ceiling/issues)
 - [GitHub Discussions](https://github.com/Djelibeybi/hass-lifx-ceiling/discussions)

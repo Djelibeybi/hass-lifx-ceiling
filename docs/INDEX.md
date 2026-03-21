@@ -110,7 +110,7 @@ Root level:
 ├── README.md          # User documentation
 ├── CLAUDE.md          # AI assistant guide
 ├── CONTRIBUTING.md    # Contribution guidelines
-└── ruff.toml          # Code style configuration
+└── pyproject.toml     # Python dependencies and tool configuration
 ```
 
 ---

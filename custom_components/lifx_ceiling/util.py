@@ -164,3 +164,5 @@ async def async_execute_lifx(
     if failed:
         msg = f"{len(failed)} requests timed out after {overall_timeout} seconds."
         raise TimeoutError(msg)
+
+    return results

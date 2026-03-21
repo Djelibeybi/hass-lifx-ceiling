@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=69.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hass-lifx-ceiling"
+version = "2026.3.0"
+description = "Home Assistant custom integration for independent LIFX Ceiling uplight and downlight entities."
+readme = "README.md"
+requires-python = ">=3.14.2"
+dependencies = [
+    "aiolifx>=1.2.1",
+    "aiolifx-effects>=0.3.2",
+    "aiolifx-themes>=1.0.3",
+    "colorlog>=6.8.2",
+    "homeassistant>=2025.8.0",
+]
+
+[project.optional-dependencies]
+lint = ["ruff>=0.6.1"]
+test = ["pytest==9.0.2", "pytest-asyncio==1.3.0", "pytest-cov==7.0.0"]
+dev = [
+    "pytest==9.0.2",
+    "pytest-asyncio==1.3.0",
+    "pytest-cov==7.0.0",
+    "ruff>=0.6.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["custom_components*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"custom_components.lifx_ceiling" = [
+    "*.json",
+    "*.yaml",
+    "branch/*.png",
+    "translations/*.json",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:Inheritance class HomeAssistantApplication from web.Application is discouraged:DeprecationWarning:homeassistant.components.http",
+]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "ARG001", # Unused function argument
+    "ARG002", # Unused method argument
+    "D203",   # no-blank-line-before-class (incompatible with formatter)
+    "D212",   # multi-line-summary-first-line (incompatible with formatter)
+    "COM812", # incompatible with formatter
+    "DOC201", # Return not in docstring
+    "DOC501", # Exception not in docstring
+    "FBT001", # Boolean-typed positional argument in function definition
+    "FBT002", # Boolean default positional argument in function definition
+    "ISC001", # incompatible with formatter
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+    "ANN001",
+    "ANN202",
+    "ARG005",
+    "EM101",
+    "PLR2004",
+    "RUF043",
+    "S101",
+    "SLF001",
+    "TC002",
+    "TC003",
+]

@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -82,7 +82,7 @@ The integration transitioned from per-device config entries to a single config e
 ## Code Style
 
 This project follows Home Assistant's coding standards:
-- Ruff for linting/formatting (config in `pyproject.toml`)
+- Ruff for linting/formatting (configuration in `pyproject.toml`)
 - Target Python 3.12+
 - Type annotations required (uses `from __future__ import annotations`)
 - `TYPE_CHECKING` blocks for import-time vs runtime types

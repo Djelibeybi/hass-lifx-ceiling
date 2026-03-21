@@ -578,5 +578,5 @@ User action (turn_on/turn_off)
 - **Architecture Overview**: See `CLAUDE.md`
 - **User Documentation**: See `README.md`
 - **Contribution Guidelines**: See `CONTRIBUTING.md`
-- **Code Style**: See `ruff.toml`
+- **Code Style**: See `pyproject.toml`
 - **Integration Manifest**: See `custom_components/lifx_ceiling/manifest.json`

@@ -1,0 +1,60 @@
+name: "Tests"
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: "Pytest"
+    runs-on: "ubuntu-latest"
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v6"
+
+      - name: "Install uv"
+        uses: "astral-sh/setup-uv@v7"
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: "Sync test dependencies"
+        run: uv sync --extra test
+
+      - name: "Run tests"
+        run: >
+          uv run pytest
+          --cov=custom_components.lifx_ceiling
+          --cov-report=term-missing
+          --cov-report=xml
+          --junitxml=junit.xml
+          -o junit_family=legacy
+          tests
+
+      - name: "Upload coverage to Codecov"
+        if: ${{ env.CODECOV_TOKEN != '' }}
+        uses: "codecov/codecov-action@v5"
+        with:
+          fail_ci_if_error: true
+          files: "./coverage.xml"
+          flags: "unittests"
+          name: "python-3.14"
+          verbose: true
+          slug: Djelibeybi/hass-lifx-ceiling
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

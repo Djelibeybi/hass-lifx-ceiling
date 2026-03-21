@@ -13,20 +13,21 @@ jobs:
     name: "Ruff"
     runs-on: "ubuntu-latest"
     steps:
-        - name: "Checkout the repository"
-          uses: "actions/checkout@v6"
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v6"
 
-        - name: "Set up Python"
-          uses: actions/setup-python@v6.2.0
-          with:
-            python-version: "3.13"
-            cache: "pip"
+      - name: "Install uv"
+        uses: "astral-sh/setup-uv@v7"
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
 
-        - name: "Install requirements"
-          run: python3 -m pip install -r requirements.txt
+      - name: "Sync lint dependencies"
+        run: uv sync --extra lint
 
-        - name: "Lint"
-          run: python3 -m ruff check .
+      - name: "Lint"
+        run: uv run ruff check .
 
-        - name: "Format"
-          run: python3 -m ruff format . --check
+      - name: "Format"
+        run: uv run ruff format . --check

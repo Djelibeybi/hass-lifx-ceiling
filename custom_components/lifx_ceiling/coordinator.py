@@ -173,7 +173,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
             int(uplight_kelvin),
         )
 
-        transition = call.data[ATTR_TRANSITION]
+        transition = call.data.get(ATTR_TRANSITION, 0)
 
         device_registry = dr.async_get(self.hass)
         for device_id in device_ids:
