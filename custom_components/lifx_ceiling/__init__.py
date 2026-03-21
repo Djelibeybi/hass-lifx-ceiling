@@ -18,6 +18,8 @@ from .coordinator import LIFXCeilingConfigEntry, LIFXCeilingUpdateCoordinator
 from .util import async_get_legacy_entries, has_single_config_entry
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from homeassistant.core import HomeAssistant, ServiceCall
     from homeassistant.helpers.typing import ConfigType
 
@@ -74,8 +76,12 @@ async def async_setup_entry(
         DOMAIN, SERVICE_LIFX_CEILING_SET_STATE, handle_set_state
     )
 
+    async def _periodic_update(now: datetime) -> None:
+        """Handle periodic discovery updates."""
+        await coordinator.async_update(now)
+
     coordinator.stop_discovery = async_track_time_interval(
-        hass, coordinator.async_update, DISCOVERY_INTERVAL
+        hass, _periodic_update, DISCOVERY_INTERVAL
     )
 
     return True

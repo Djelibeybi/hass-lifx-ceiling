@@ -149,6 +149,10 @@ cython_debug/
 .idea/
 .vscode/
 
+# OS junk
+.DS_Store
+Thumbs.db
+
 # Home Assistant custom component
 /custom_components/__init__.py
 

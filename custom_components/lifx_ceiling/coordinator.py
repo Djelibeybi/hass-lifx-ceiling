@@ -9,6 +9,7 @@ from awesomeversion import AwesomeVersion
 from homeassistant.components.light import ATTR_TRANSITION
 from homeassistant.const import ATTR_DEVICE_ID, MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from homeassistant.components.lifx.coordinator import LIFXUpdateCoordinator
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant, ServiceCall
+    from homeassistant.helpers.device_registry import DeviceEntry
 
 type LIFXCeilingConfigEntry = ConfigEntry[LIFXCeilingUpdateCoordinator]
 
@@ -53,6 +55,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
             hass=hass,
             logger=_LOGGER,
             config_entry=config_entry,
+            update_interval=None,
             name="LIFX Ceiling",
         )
 
@@ -75,7 +78,7 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
     @callback
     def set_discovery_callback(
         self, callback: Callable[[LIFXCeiling], None]
-    ) -> Callable[[LIFXCeiling], None]:
+    ) -> Callable[[LIFXCeiling], None] | None:
         """Set the discovery callback for the LIFX Ceiling Finder."""
         old_callback = self._discovery_callback
         self._discovery_callback = callback
@@ -87,51 +90,64 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
         """Set the update listener for the LIFX Ceiling Finder."""
         self._ceiling_coordinators[device.mac_addr].async_add_listener(callback)
 
+    async def _async_update_data(self) -> list[LIFXCeiling]:
+        """Return the list of LIFX Ceilings."""
+        return list(self._ceilings)
+
     async def async_update(self, update_time: datetime | None = None) -> None:
         """Fetch new LIFX Ceiling coordinators from the core integration."""
-        lifx_coordinators = [
-            coordinator
-            for coordinator in find_lifx_coordinators(self.hass)
-            if coordinator.device.mac_addr not in self._ceiling_coordinators
-        ]
+        try:
+            lifx_coordinators: list[LIFXUpdateCoordinator] = [
+                coordinator
+                for coordinator in find_lifx_coordinators(self.hass)
+                if coordinator.device.mac_addr not in self._ceiling_coordinators
+            ]
 
-        for coordinator in lifx_coordinators:
-            # Cast the existing connection to a LIFX Ceiling objects
-            ceiling = LIFXCeiling.cast(coordinator.device)
-            self._ceiling_coordinators[ceiling.mac_addr] = coordinator
+            for coordinator in lifx_coordinators:
+                # Cast the existing connection to a LIFX Ceiling objects
+                ceiling: LIFXCeiling = LIFXCeiling.cast(coordinator.device)
+                self._ceiling_coordinators[ceiling.mac_addr] = coordinator
 
-            self._ceilings.add(ceiling)
+                self._ceilings.add(ceiling)
 
-            if self._discovery_callback and callable(self._discovery_callback):
-                self._discovery_callback(ceiling)
+                if self._discovery_callback and callable(self._discovery_callback):
+                    self._discovery_callback(ceiling)
+
+        except HomeAssistantError as err:
+            _LOGGER.warning("Error updating LIFX Ceiling coordinators: %s", err)
 
     async def async_set_state(self, call: ServiceCall) -> None:
         """Handle the set_state service call."""
-        device_ids = call.data.get(ATTR_DEVICE_ID)
+        device_ids: list[str] | str | None = call.data.get(ATTR_DEVICE_ID)
+
+        if device_ids is None:
+            _LOGGER.warning("Set state called with no device ID; ignoring")
+            return
+
         if not isinstance(device_ids, list):
-            device_ids = [device_ids]
+            device_ids = [str(device_ids)]
 
         downlight_hue = (
-            call.data[ATTR_DOWNLIGHT_HUE] / 360 * 65535
+            int(call.data[ATTR_DOWNLIGHT_HUE]) / 360 * 65535
             if ATTR_DOWNLIGHT_HUE in call.data
             else 0
         )
         downlight_saturation = (
-            call.data[ATTR_DOWNLIGHT_SATURATION] / 100 * 65535
+            int(call.data[ATTR_DOWNLIGHT_SATURATION]) / 100 * 65535
             if ATTR_DOWNLIGHT_SATURATION in call.data
             else 0
         )
         downlight_brightness = (
-            call.data[ATTR_DOWNLIGHT_BRIGHTNESS] / 100 * 65535
+            int(call.data[ATTR_DOWNLIGHT_BRIGHTNESS]) / 100 * 65535
             if ATTR_DOWNLIGHT_BRIGHTNESS in call.data
             else 65535
         )
         downlight_kelvin = call.data.get(ATTR_DOWNLIGHT_KELVIN, 3500)
-        downlight_color = (
-            downlight_hue,
-            downlight_saturation,
-            downlight_brightness,
-            downlight_kelvin,
+        downlight_color: tuple[int, int, int, int] = (
+            int(downlight_hue),
+            int(downlight_saturation),
+            int(downlight_brightness),
+            int(downlight_kelvin),
         )
 
         uplight_hue = (
@@ -150,41 +166,71 @@ class LIFXCeilingUpdateCoordinator(DataUpdateCoordinator[list[LIFXCeiling]]):
             else 65535
         )
         uplight_kelvin = call.data.get(ATTR_UPLIGHT_KELVIN, 3500)
-        uplight_color = (
-            uplight_hue,
-            uplight_saturation,
-            uplight_brightness,
-            uplight_kelvin,
+        uplight_color: tuple[int, int, int, int] = (
+            int(uplight_hue),
+            int(uplight_saturation),
+            int(uplight_brightness),
+            int(uplight_kelvin),
         )
 
         transition = call.data[ATTR_TRANSITION]
 
+        device_registry = dr.async_get(self.hass)
         for device_id in device_ids:
-            device_registry = dr.async_get(self.hass)
-            device_entry = device_registry.async_get(device_id)
+            device_entry: DeviceEntry | None = device_registry.async_get(device_id)
+
+            if device_entry is None:
+                _LOGGER.warning(
+                    "Device ID %s not found in the device registry;"
+                    " the device may have been removed or the service"
+                    " call targets an incorrect device",
+                    device_id,
+                )
+                continue
 
             device: LIFXCeiling | None = None
             for identifier in device_entry.identifiers:
                 if (
-                    identifier[0] == DOMAIN
-                    and identifier[1] in self._ceiling_coordinators
+                    identifier[0] != DOMAIN
+                    or identifier[1] not in self._ceiling_coordinators
                 ):
-                    device = self._ceiling_coordinators.get(identifier[1]).device
+                    continue
 
-            if device is not None and isinstance(device, LIFXCeiling):
-                if downlight_brightness == 0 and uplight_brightness == 0:
-                    await async_execute_lifx(
-                        partial(device.set_power, value="off", duration=transition)
-                    )
-                else:
-                    colors = [downlight_color] * (device.total_zones - 1) + [
-                        uplight_color
-                    ]
-                    await device.async_set64(
-                        colors=colors,
-                        duration=transition,
-                        power_on=bool(device.power_level == 0),
-                    )
+                coordinator: LIFXUpdateCoordinator | None = (
+                    self._ceiling_coordinators.get(identifier[1])
+                )
+
+                if (
+                    coordinator is not None
+                    and hasattr(coordinator, "device")
+                    and isinstance(coordinator.device, LIFXCeiling)
+                ):
+                    device = coordinator.device
+                    break
+
+                _LOGGER.warning(
+                    "Device ID %s matched identifier %s but coordinator is invalid",
+                    device_id,
+                    identifier[1],
+                )
+
+            if device is None:
+                _LOGGER.warning(
+                    "No valid LIFX Ceiling device found for device ID %s", device_id
+                )
+                continue
+
+            if downlight_brightness == 0 and uplight_brightness == 0:
+                await async_execute_lifx(
+                    partial(device.set_power, value="off", duration=transition)
+                )
+            else:
+                colors = [downlight_color] * (device.total_zones - 1) + [uplight_color]
+                await device.async_set64(
+                    colors=colors,
+                    duration=transition,
+                    power_on=bool(device.power_level == 0),
+                )
 
     async def turn_uplight_on(
         self, device: LIFXCeiling, color: tuple[int, int, int, int], duration: int = 0
