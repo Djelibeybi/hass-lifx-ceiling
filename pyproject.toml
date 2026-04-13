@@ -12,7 +12,7 @@ dependencies = [
     "aiolifx>=1.2.1",
     "aiolifx-effects>=0.3.2",
     "aiolifx-themes>=1.0.3",
-    "colorlog>=6.8.2",
+    "colorlog>=6.10.1",
     "homeassistant>=2025.8.0",
 ]
 
