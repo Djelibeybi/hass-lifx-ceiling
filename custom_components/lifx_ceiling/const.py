@@ -38,6 +38,11 @@ LIFX_CEILING_PRODUCT_IDS = {176, 177, 201, 202, 265, 266}
 LIFX_CEILING_64ZONES_PRODUCT_IDS = {176, 177, 265, 266}
 LIFX_CEILING_128ZONES_PRODUCT_IDS = {201, 202}
 
+# Home Assistant 2026.10 replaced the core LIFX integration's aiolifx backend and
+# added native uplight/downlight entities, which supersedes this integration.
+REPLACED_BY_CORE_VERSION = (2026, 10)
+ISSUE_REPLACED_BY_CORE = "replaced_by_core"
+
 SERVICE_LIFX_CEILING_SET_STATE = "set_state"
 
 RUNTIME_DATA_HASS_VERSION = "2025.7.0"

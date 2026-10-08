@@ -6,11 +6,13 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.exceptions import ConfigEntryError
 
 import custom_components.lifx_ceiling as integration
 from custom_components.lifx_ceiling.const import (
     DISCOVERY_INTERVAL,
     DOMAIN,
+    ISSUE_REPLACED_BY_CORE,
     NAME,
 )
 
@@ -146,3 +148,45 @@ async def test_async_unload_entry_stops_discovery_and_unloads_platforms() -> Non
         entry,
         integration.PLATFORMS,
     )
+
+
+@pytest.mark.asyncio
+async def test_async_setup_raises_repair_issue_when_replaced_by_core(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Setup should raise a repair issue and skip migration on 2026.10+."""
+    create_issue = MagicMock()
+    get_legacy_entries = MagicMock()
+    monkeypatch.setattr(integration, "is_replaced_by_core", lambda: True)
+    monkeypatch.setattr(integration.ir, "async_create_issue", create_issue)
+    monkeypatch.setattr(integration, "async_get_legacy_entries", get_legacy_entries)
+    hass = SimpleNamespace()
+
+    assert await integration.async_setup(hass, {}) is True
+
+    create_issue.assert_called_once()
+    assert create_issue.call_args.args == (hass, DOMAIN, ISSUE_REPLACED_BY_CORE)
+    assert create_issue.call_args.kwargs["is_fixable"] is False
+    assert create_issue.call_args.kwargs["translation_key"] == ISSUE_REPLACED_BY_CORE
+    get_legacy_entries.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_refuses_when_replaced_by_core(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Entry setup should fail permanently on 2026.10+."""
+    coordinator_cls = MagicMock()
+    monkeypatch.setattr(integration, "is_replaced_by_core", lambda: True)
+    monkeypatch.setattr(integration, "LIFXCeilingUpdateCoordinator", coordinator_cls)
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_forward_entry_setups=AsyncMock())
+    )
+    entry = SimpleNamespace(runtime_data=None)
+
+    with pytest.raises(ConfigEntryError) as err:
+        await integration.async_setup_entry(hass, entry)
+
+    assert err.value.translation_key == ISSUE_REPLACED_BY_CORE
+    coordinator_cls.assert_not_called()
+    hass.config_entries.async_forward_entry_setups.assert_not_awaited()

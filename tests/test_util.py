@@ -147,3 +147,22 @@ def test_async_get_legacy_entries_filters_out_singleton_entry() -> None:
     )
 
     assert async_get_legacy_entries(hass) == [legacy_entry]
+
+
+@pytest.mark.parametrize(
+    ("major", "minor", "expected"),
+    [
+        (2026, 9, False),
+        (2026, 10, True),
+        (2026, 11, True),
+        (2027, 1, True),
+    ],
+)
+def test_is_replaced_by_core(
+    monkeypatch: pytest.MonkeyPatch, major: int, minor: int, expected: bool
+) -> None:
+    """Home Assistant 2026.10 and later supersede this integration."""
+    monkeypatch.setattr(util, "MAJOR_VERSION", major)
+    monkeypatch.setattr(util, "MINOR_VERSION", minor)
+
+    assert util.is_replaced_by_core() is expected

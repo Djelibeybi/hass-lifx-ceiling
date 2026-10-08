@@ -5,17 +5,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
+from homeassistant.exceptions import ConfigEntryError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     _LOGGER,
     DISCOVERY_INTERVAL,
     DOMAIN,
+    ISSUE_REPLACED_BY_CORE,
     NAME,
     SERVICE_LIFX_CEILING_SET_STATE,
 )
 from .coordinator import LIFXCeilingConfigEntry, LIFXCeilingUpdateCoordinator
-from .util import async_get_legacy_entries, has_single_config_entry
+from .util import (
+    async_get_legacy_entries,
+    has_single_config_entry,
+    is_replaced_by_core,
+)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -29,6 +36,24 @@ PLATFORMS: list[Platform] = [Platform.LIGHT]
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the LIFX Ceiling integration."""
+    if is_replaced_by_core():
+        _LOGGER.warning(
+            "LIFX Ceiling support is built into the core LIFX integration from "
+            "Home Assistant 2026.10.0. This custom integration is disabled and "
+            "should be removed"
+        )
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            ISSUE_REPLACED_BY_CORE,
+            is_fixable=False,
+            is_persistent=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key=ISSUE_REPLACED_BY_CORE,
+            learn_more_url="https://www.home-assistant.io/integrations/lifx",
+        )
+        return True
+
     legacy_entries = async_get_legacy_entries(hass)
     if len(legacy_entries) == 0:
         # No legacy entries found, no need to migrate
@@ -62,6 +87,12 @@ async def async_setup_entry(
     hass: HomeAssistant, config_entry: LIFXCeilingConfigEntry
 ) -> bool:
     """Set up LIFX Ceiling."""
+    if is_replaced_by_core():
+        raise ConfigEntryError(
+            translation_domain=DOMAIN,
+            translation_key=ISSUE_REPLACED_BY_CORE,
+        )
+
     coordinator = LIFXCeilingUpdateCoordinator(hass, config_entry)
     await coordinator.async_update()
 

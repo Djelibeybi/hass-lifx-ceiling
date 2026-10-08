@@ -7,7 +7,8 @@
     },
     "abort": {
       "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
-      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]"
+      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]",
+      "replaced_by_core": "LIFX Ceiling is supported natively by the core LIFX integration from Home Assistant 2026.10.0. This custom integration is no longer needed."
     }
   },
   "services": {
@@ -56,6 +57,17 @@
           "description": "Saturation in percent, where 0 is off and 100 is the maximum saturation."
         }
       }
+    }
+  },
+  "issues": {
+    "replaced_by_core": {
+      "title": "LIFX Ceiling custom integration is no longer needed",
+      "description": "Home Assistant 2026.10.0 and later include native support for the LIFX Ceiling uplight and downlight in the core LIFX integration. This custom integration is incompatible with this version of Home Assistant and has disabled itself.\n\nRemove the LIFX Ceiling integration from **Settings > Devices & services**, uninstall it from HACS, then restart Home Assistant. Update any automations, scripts or dashboards that use the old uplight and downlight entities or the `lifx_ceiling.set_state` action."
+    }
+  },
+  "exceptions": {
+    "replaced_by_core": {
+      "message": "LIFX Ceiling is supported natively by Home Assistant 2026.10.0 and later. Remove this custom integration."
     }
   }
 }
