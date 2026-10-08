@@ -16,6 +16,7 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
 )
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 
 from .const import (
     _LOGGER,
@@ -27,6 +28,7 @@ from .const import (
     HSBK_SATURATION,
     LIFX_CEILING_PRODUCT_IDS,
     OVERALL_TIMEOUT,
+    REPLACED_BY_CORE_VERSION,
 )
 
 if TYPE_CHECKING:
@@ -36,6 +38,11 @@ if TYPE_CHECKING:
     from aiolifx.message import Message
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
+
+
+def is_replaced_by_core() -> bool:
+    """Return True if this Home Assistant version natively supports LIFX Ceiling."""
+    return (MAJOR_VERSION, MINOR_VERSION) >= REPLACED_BY_CORE_VERSION
 
 
 def find_lifx_coordinators(hass: HomeAssistant) -> list[LIFXUpdateCoordinator]:

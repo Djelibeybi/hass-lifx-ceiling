@@ -1,5 +1,10 @@
 # LIFX Ceiling custom integration
 
+> [!IMPORTANT]
+> **This integration is not needed with Home Assistant 2026.10.0 or later.** The core LIFX integration now supports the LIFX Ceiling uplight and downlight natively.
+>
+> From version 2026.10.0, this integration disables itself on Home Assistant 2026.10.0 or later and raises a repair issue. Remove the LIFX Ceiling integration from **Settings > Devices & services**, uninstall it from HACS, and update any automations, scripts or dashboards that use its entities or the `lifx_ceiling.set_state` action.
+
 This integration adds `light` entities for the uplight and downlight of a LIFX Ceiling, allowing you to control each independently.
 
 It received a major refactoring in May 2025 with the first GA release of 2025.5.0.
