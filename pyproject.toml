@@ -37,7 +37,7 @@ namespaces = true
 "custom_components.lifx_ceiling" = [
     "*.json",
     "*.yaml",
-    "branch/*.png",
+    "brand/*.png",
     "translations/*.json",
 ]
 
