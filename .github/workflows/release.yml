@@ -21,7 +21,7 @@ jobs:
         shell: "bash"
         run: |
           cd "${{ github.workspace }}/custom_components/lifx_ceiling"
-          zip exoy_one.zip -r ./
+          zip lifx_ceiling.zip -r ./
 
       - name: "Upload the ZIP file to the release"
         uses: "softprops/action-gh-release@v3.0.3"
